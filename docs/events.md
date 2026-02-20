@@ -54,6 +54,22 @@ Optional: `confidence`, `model` (for AI events).
 
 ---
 
+## Structured Session Documentation (EPIC 14)
+
+| Event type | Description | Payload |
+|------------|-------------|---------|
+| `structured_document.created` | Structured session document created (manual or generated) | document_id, conversation_id, version |
+| `structured_document.updated` | Structured session document content updated | document_id, conversation_id, version |
+| `structured_document.versioned` | New version of structured document saved | document_id, conversation_id, version |
+| `structured_document.generated` | Structured document generated from conversation via LLM | document_id, conversation_id, version |
+| `structured_document.validation_failed` | LLM output for structured document failed schema validation | conversation_id, reason |
+| `intervention_suggested` | Intervention suggestion shown (no PII) | intervention_id, category |
+| `intervention_viewed` | User viewed intervention library entry (no PII) | intervention_id, category |
+
+**Flow:** Structured docs stored in `structured_session_documents`; conversion via server-side LLM only. No prompt content logged.
+
+---
+
 ## Storage
 
 Events are stored in `domain_events` (append-only, tenant-isolated).  

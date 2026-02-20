@@ -245,6 +245,63 @@ Use careful language such as:
                     {"prompt_id": str(row[0]), "body": body, "key": key},
                 )
 
+        # Intervention library (EPIC 14): global entries, evidence-informed, non-prescriptive
+        _INTERVENTIONS = [
+            (
+                "anxiety",
+                "Exposition und Konfrontation",
+                "In der Literatur werden Exposition und Konfrontation als evidenzgestützte Ansätze bei Angsterkrankungen beschrieben. Die therapeutische Umsetzung obliegt der fachlichen Einschätzung.",
+                "Level 1 (RCT-Metaanalysen)",
+                ["Bandelow et al., S3-Leitlinie Angststörungen"],
+            ),
+            (
+                "anxiety",
+                "Entspannungsverfahren",
+                "Entspannungsverfahren (z. B. PMR, Atemübungen) werden in Leitlinien als unterstützende Elemente erwähnt. Indikation und Dosierung sind im Einzelfall zu prüfen.",
+                "Level 2",
+                ["S3-Leitlinie Angststörungen"],
+            ),
+            (
+                "depression",
+                "Aktivierung und Verhaltensaktivierung",
+                "Verhaltensaktivierung ist in Metaanalysen mit Besserung depressiver Symptomatik assoziiert. Die konkrete Ausgestaltung erfolgt im therapeutischen Setting.",
+                "Level 1",
+                ["Cuijpers et al.; S3-Leitlinie Unipolare Depression"],
+            ),
+            (
+                "depression",
+                "Kognitive Methoden",
+                "Kognitive Techniken werden in Leitlinien im Rahmen kognitiver Verhaltenstherapie bei Depression beschrieben. Keine Ersetzung klinischer Indikationsstellung.",
+                "Level 1",
+                ["S3-Leitlinie Unipolare Depression"],
+            ),
+            (
+                "general",
+                "Psychoedukation",
+                "Psychoedukation wird in Leitlinien als unterstützendes Element in verschiedenen Störungsbildern genannt. Inhalt und Umfang sind kontextabhängig.",
+                "Level 2",
+                ["DGPPN-S3-Leitlinien"],
+            ),
+        ]
+        for cat, title, desc, level, refs in _INTERVENTIONS:
+            await session.execute(
+                text("""
+                    INSERT INTO intervention_library (category, title, description, evidence_level, "references", tenant_id)
+                    SELECT :cat, :title, :desc, :level, :refs, NULL
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM intervention_library
+                        WHERE category = :cat AND title = :title AND tenant_id IS NULL
+                    )
+                """),
+                {
+                    "cat": cat,
+                    "title": title,
+                    "desc": desc,
+                    "level": level,
+                    "refs": refs,
+                },
+            )
+
         await session.commit()
     print("Seed complete.")
 

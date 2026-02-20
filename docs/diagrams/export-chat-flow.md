@@ -26,6 +26,10 @@ sequenceDiagram
             FE-->>U: Error alert
         else Within limits
             API->>DB: INSERT audit_logs (action=export_requested, metadata={format}, NO content)
+            opt PDF only
+                API->>DB: GET structured_session_documents (latest for chat, RLS)
+                Note over API,DB: If present, append "Strukturierte Dokumentation" section
+            end
             API->>API: Generate TXT or PDF
             API-->>FE: 200 + Content-Disposition attachment
             FE->>FE: blob → createObjectURL → download
@@ -33,6 +37,10 @@ sequenceDiagram
         end
     end
 ```
+
+## PDF and structured documentation (EPIC 14)
+
+For **PDF** export, if the chat has an associated structured session document (table `structured_session_documents`), its non-empty fields are appended after the messages as a "Strukturierte Dokumentation" section. TXT export is unchanged (messages only).
 
 ## Compliance
 

@@ -1,5 +1,6 @@
 """Database connection and session. Sets app.tenant_id per request for RLS."""
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from uuid import UUID
 
 from sqlalchemy import text
@@ -34,6 +35,25 @@ async def get_session(
     user_id: str | None = None,
 ) -> AsyncGenerator[AsyncSession, None]:
     """Get DB session. Sets app.tenant_id for RLS when tenant_id provided."""
+    async with async_session_factory() as session:
+        if tenant_id:
+            await session.execute(text(f"SET LOCAL app.tenant_id = '{tenant_id}'"))
+        if user_id:
+            await session.execute(text(f"SET LOCAL app.user_id = '{user_id}'"))
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+@asynccontextmanager
+async def session_scope(
+    tenant_id: UUID | None = None,
+    user_id: str | None = None,
+):
+    """Async context manager: commit on exit so data is visible to following requests."""
     async with async_session_factory() as session:
         if tenant_id:
             await session.execute(text(f"SET LOCAL app.tenant_id = '{tenant_id}'"))

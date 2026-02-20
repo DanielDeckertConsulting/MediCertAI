@@ -247,6 +247,7 @@ See `docs/diagrams/mobile-responsive-layout.md`.
 - Chat Finalize (Lock): `docs/diagrams/chat-finalize-flow.md`
 - Case Summary (Cross-Conversation): `docs/diagrams/case-summary-flow.md`
 - Voice-to-Text Dictation: `docs/diagrams/voice-dictation-flow.md`
+- Structured Session Documentation (EPIC 14): `docs/diagrams/structured-session-documentation-flow.md`
 
 ## 10. AI Response Rendering Engine (EPIC 13)
 
@@ -271,7 +272,19 @@ See `INFRASTRUCTURE_DECISION.md` for concrete service choices and tradeoffs.
 
 ---
 
-## 12. What changed
+## 12. Structured Session Documentation (EPIC 14, 2026-02-20)
+
+- **Structured Session Templates (1.1):** Schema-driven documentation with optional fields (session_context, presenting_symptoms, resources, interventions, homework, risk_assessment, progress_evaluation). Toggle Chat View / Structured View in UI. Table `structured_session_documents` (tenant_id, conversation_id, version, content JSONB). RLS enforced. Events: `structured_document.created`, `structured_document.updated`, `structured_document.versioned`.
+- **Intervention Suggestion Library (1.2):** Table `intervention_library` (global + tenant). Evidence-informed, non-prescriptive. UI: "Interventionsideen" panel. Events: `intervention_suggested`, `intervention_viewed`.
+- **Automatic Session Structuring (1.3):** Button "In Struktur umwandeln" triggers server-side LLM transformation; conversation → structured JSON → validation → store. Events: `structured_document.generated`, `structured_document.validation_failed`. PDF export includes structured document section when present.
+
+---
+
+## 13. What changed
+
+### 2026-02-20 (EPIC 14 — Structured Clinical Documentation)
+
+- **Structured Session Documentation:** Chat/Structured view toggle, structured form (7 fields), "In Struktur umwandeln" (LLM conversion), intervention library panel. Tables: `structured_session_documents`, `intervention_library`. PDF export includes structured section when present. See §12.
 
 ### 2026-02-20 (Voice-to-Text Dictation)
 

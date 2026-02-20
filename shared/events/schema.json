@@ -69,6 +69,59 @@
       "payload": {
         "chat_id": "string"
       }
+    },
+    "structured_document.created": {
+      "description": "Structured session document created (manual or generated)",
+      "payload": {
+        "document_id": "string",
+        "conversation_id": "string",
+        "version": "number"
+      }
+    },
+    "structured_document.updated": {
+      "description": "Structured session document content updated",
+      "payload": {
+        "document_id": "string",
+        "conversation_id": "string",
+        "version": "number"
+      }
+    },
+    "structured_document.versioned": {
+      "description": "New version of structured document saved",
+      "payload": {
+        "document_id": "string",
+        "conversation_id": "string",
+        "version": "number"
+      }
+    },
+    "structured_document.generated": {
+      "description": "Structured document generated from conversation via LLM",
+      "payload": {
+        "document_id": "string",
+        "conversation_id": "string",
+        "version": "number"
+      }
+    },
+    "structured_document.validation_failed": {
+      "description": "LLM output for structured document failed schema validation",
+      "payload": {
+        "conversation_id": "string",
+        "reason": "string"
+      }
+    },
+    "intervention_suggested": {
+      "description": "Intervention suggestion shown to user (no PII)",
+      "payload": {
+        "intervention_id": "string",
+        "category": "string"
+      }
+    },
+    "intervention_viewed": {
+      "description": "User viewed intervention library entry (no PII)",
+      "payload": {
+        "intervention_id": "string",
+        "category": "string"
+      }
     }
   }
 }

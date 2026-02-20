@@ -54,6 +54,10 @@ Permissions:
   * folders
   * audit_logs
   * usage_records
+  * domain_events
+  * ai_responses
+  * structured_session_documents
+  * intervention_library (global + tenant)
 * No cross-tenant visibility
 * Tenant enforcement middleware
 
@@ -196,6 +200,7 @@ Per chat:
 
 * TXT export
 * PDF export (clean layout, timestamped)
+* PDF includes structured session documentation section when present
 * Minimal branding
 * Allowed when finalized
 * Audit event: `export_requested`
@@ -230,7 +235,45 @@ Button: "Fallzusammenfassung generieren"
 
 ---
 
-# 7. AI Response Rendering
+# 7. Structured Clinical Documentation Engine (EPIC 14)
+
+## 7.1 Structured Session Templates
+
+* View toggle: **Chat** | **Structured** (Struktur)
+* Structured form with 7 optional fields:
+  * Sitzungskontext, Vorstellende Symptome / Anliegen, Ressourcen, Interventionen, Hausaufgaben / Vereinbarungen, Risikoeinschätzung, Verlaufsbewertung
+* Manual create/edit; version increments on save
+* Table: `structured_session_documents` (tenant_id, conversation_id, version, content JSONB)
+* RLS enforced
+* Domain events: `structured_document.created`, `structured_document.updated`, `structured_document.versioned`
+
+## 7.2 Intervention Suggestion Library
+
+* Panel: **Interventionsideen** (evidence-informed, non-prescriptive)
+* Disclaimer: "Literaturgestützte Orientierungshilfen. Die fachliche Entscheidung liegt bei der Therapeut:in."
+* Table: `intervention_library` (category, title, description, evidence_level, references; tenant_id nullable = global)
+* RLS: global entries + tenant-specific
+* Seeded with initial entries (anxiety, depression, general)
+* Events: `intervention_viewed` (no PII)
+
+## 7.3 Automatic Session Structuring
+
+* Button: **In Struktur umwandeln** (when chat has messages)
+* Server-side only: fetch conversation → LLM transformation → validate JSON → store
+* No diagnosis, no ICD, documentation only
+* Invalid JSON → 422 + `structured_document.validation_failed`
+* Success → `structured_document.generated`; UI switches to Structured view
+* No prompt content logged
+
+## 7.4 Compliance
+
+* Covered by existing GDPR retention
+* No PII in events or logs
+* PDF export includes structured document section when present
+
+---
+
+# 8. AI Response Rendering
 
 * Markdown sanitization
 * Block extraction
@@ -250,7 +293,7 @@ Optional:
 
 ---
 
-# 8. Voice-to-Text Dictation
+# 9. Voice-to-Text Dictation
 
 * Microphone icon in chat input
 * Browser Web Speech API (MVP)
@@ -261,9 +304,9 @@ Optional:
 
 ---
 
-# 9. Admin & Monitoring
+# 10. Admin & Monitoring
 
-## 9.1 KPIs
+## 10.1 KPIs
 
 * Token usage (input/output/total)
 * Requests
@@ -277,7 +320,7 @@ Scope:
 * Admin: tenant-wide
 * User: own only
 
-## 9.2 Searchable Audit Logs
+## 10.2 Searchable Audit Logs
 
 Filter by:
 
@@ -305,7 +348,7 @@ Not logged:
 
 ---
 
-# 10. Security Architecture
+# 11. Security Architecture
 
 * Azure Germany West Central
 * HTTPS / TLS
@@ -318,7 +361,7 @@ Not logged:
 
 ---
 
-# 11. Data Architecture
+# 12. Data Architecture
 
 Entities:
 
@@ -331,6 +374,8 @@ Entities:
 * AuditLog
 * usage_records
 * AIResponse
+* StructuredSessionDocument (per conversation, versioned)
+* InterventionLibrary (global + tenant)
 
 Storage:
 
@@ -371,6 +416,8 @@ Storage:
 * Voice dictation works
 * AI Confidence Indicator visible
 * Admin KPIs + searchable logs functional
+* Structured Session Documentation: Chat/Structured toggle, manual form, convert button, intervention panel
+* RLS cross-tenant isolation for structured documents (proven by test)
 * No cross-tenant data leak possible
 * No sensitive content logged
 * Azure-only processing

@@ -9,16 +9,23 @@ import {
   finalizeChat,
   generateCaseSummary,
   getChat,
+  getStructuredDocument,
+  putStructuredDocument,
+  convertToStructuredDocument,
   listChats,
   listFolders,
+  listInterventions,
   listPrompts,
-  patchChat,
   type CaseSummaryOut,
   type ChatSummary,
   type ExportFormat,
   type FolderOut,
+  type InterventionOut,
   type MessageOut,
   type PromptSummary,
+  type StructuredContent,
+  type StructuredDocumentOut,
+  STRUCTURED_DOC_FIELDS,
 } from "../api/client";
 import { streamChatMessage } from "../api/streamChat";
 import { ChatMessageMarkdown } from "../components/ChatMessageMarkdown";
@@ -523,6 +530,13 @@ export default function ChatPage() {
   const [caseSummaryLoading, setCaseSummaryLoading] = useState(false);
   const [caseSummaryData, setCaseSummaryData] = useState<CaseSummaryOut | null>(null);
   const [caseSummaryError, setCaseSummaryError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"chat" | "structured">("chat");
+  const [structuredFormContent, setStructuredFormContent] = useState<StructuredContent>(() =>
+    STRUCTURED_DOC_FIELDS.reduce((acc, k) => ({ ...acc, [k]: "" }), {} as StructuredContent)
+  );
+  const [structuredSaveLoading, setStructuredSaveLoading] = useState(false);
+  const [convertLoading, setConvertLoading] = useState(false);
+  const [interventionDrawerOpen, setInterventionDrawerOpen] = useState(false);
 
   const chatId = conversationId ?? null;
 
@@ -554,6 +568,34 @@ export default function ChatPage() {
     queryFn: () => getChat(chatId!),
     enabled: !!chatId,
     retry: false,
+  });
+
+  const emptyStructuredContent = (): StructuredContent =>
+    STRUCTURED_DOC_FIELDS.reduce((acc, k) => ({ ...acc, [k]: "" }), {} as StructuredContent);
+
+  const {
+    data: structuredDoc,
+    refetch: refetchStructuredDoc,
+    isFetching: structuredDocLoading,
+  } = useQuery({
+    queryKey: ["structured-document", chatId],
+    queryFn: async (): Promise<StructuredDocumentOut | { content: StructuredContent; version: number }> => {
+      try {
+        return await getStructuredDocument(chatId!);
+      } catch (e) {
+        if ((e as Error).message === "NOT_FOUND")
+          return { content: emptyStructuredContent(), version: 0 } as StructuredDocumentOut & { content: StructuredContent };
+        throw e;
+      }
+    },
+    enabled: !!chatId && viewMode === "structured",
+    retry: false,
+  });
+
+  const { data: interventions = [] } = useQuery({
+    queryKey: ["interventions"],
+    queryFn: () => listInterventions(),
+    enabled: interventionDrawerOpen,
   });
 
   // Redirect to chat list when loaded chat doesn't exist (404)
@@ -736,6 +778,36 @@ export default function ChatPage() {
     setCaseSummaryError(null);
   }, []);
 
+  const handleConvertToStructured = useCallback(async () => {
+    if (!chatId || convertLoading) return;
+    setConvertLoading(true);
+    try {
+      await convertToStructuredDocument(chatId);
+      await refetchStructuredDoc();
+      setViewMode("structured");
+    } catch (e) {
+      alert((e as Error).message || "Konvertierung fehlgeschlagen.");
+    } finally {
+      setConvertLoading(false);
+    }
+  }, [chatId, convertLoading, refetchStructuredDoc]);
+
+  const handleSaveStructured = useCallback(
+    async (content: StructuredContent) => {
+      if (!chatId || structuredSaveLoading) return;
+      setStructuredSaveLoading(true);
+      try {
+        await putStructuredDocument(chatId, content);
+        await refetchStructuredDoc();
+      } catch (e) {
+        alert((e as Error).message || "Speichern fehlgeschlagen.");
+      } finally {
+        setStructuredSaveLoading(false);
+      }
+    },
+    [chatId, structuredSaveLoading, refetchStructuredDoc]
+  );
+
   const handleSafeModeToggle = useCallback(
     async (checked: boolean) => {
       setSafeMode(checked);
@@ -762,6 +834,19 @@ export default function ChatPage() {
       setSafeMode(!!chatDetail.metadata?.safe_mode);
     }
   }, [chatId, chatDetail?.id, chatDetail?.metadata]);
+
+  // Sync structured form when document loads
+  useEffect(() => {
+    if (structuredDoc?.content) {
+      const c = structuredDoc.content as StructuredContent;
+      setStructuredFormContent((prev) =>
+        STRUCTURED_DOC_FIELDS.reduce(
+          (acc, k) => ({ ...acc, [k]: c[k] ?? prev[k] ?? "" }),
+          {} as StructuredContent
+        )
+      );
+    }
+  }, [structuredDoc?.content, structuredDoc?.version]);
   const displayMessages = streamingContent
     ? [...messages, { id: "streaming", role: "assistant", content: streamingContent, created_at: "" }]
     : messages;
@@ -853,8 +938,77 @@ export default function ChatPage() {
                   </span>
                 )}
               </div>
+              {/* Intervention drawer: evidence-informed ideas (non-prescriptive) */}
+              {interventionDrawerOpen && (
+                <div className="shrink-0 border-b border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-800/50">
+                  <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Literaturgestützte Orientierungshilfen. Die fachliche Entscheidung liegt bei der Therapeut:in.
+                  </p>
+                  <ul className="max-h-48 space-y-2 overflow-y-auto">
+                    {interventions.map((i) => (
+                      <li key={i.id} className="rounded border border-gray-200 bg-white p-2 text-sm dark:border-gray-600 dark:bg-gray-800">
+                        <span className="font-medium">{i.title}</span>
+                        <span className="text-gray-500 dark:text-gray-400"> · {i.category}</span>
+                        <p className="mt-1 text-gray-600 dark:text-gray-300">{i.description}</p>
+                        {i.evidence_level && (
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{i.evidence_level}</p>
+                        )}
+                      </li>
+                    ))}
+                    {interventions.length === 0 && (
+                      <li className="text-sm text-gray-500 dark:text-gray-400">Keine Einträge geladen.</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+
               <div className="flex-1 overflow-y-auto p-4">
-                {displayMessages.length === 0 && !isStreaming ? (
+                {viewMode === "structured" ? (
+                  /* Structured Session Documentation form */
+                  <>
+                    {structuredDocLoading ? (
+                      <p className="py-8 text-center text-gray-500 dark:text-gray-400">Lade …</p>
+                    ) : (
+                      <div className="mx-auto max-w-2xl space-y-4">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Strukturierte Sitzungsdokumentation. Alle Felder optional. Version: {structuredDoc?.version ?? 0}
+                        </p>
+                        {STRUCTURED_DOC_FIELDS.map((key) => (
+                          <div key={key}>
+                            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                              {key === "session_context" && "Sitzungskontext"}
+                              {key === "presenting_symptoms" && "Vorstellende Symptome / Anliegen"}
+                              {key === "resources" && "Ressourcen"}
+                              {key === "interventions" && "Interventionen"}
+                              {key === "homework" && "Hausaufgaben / Vereinbarungen"}
+                              {key === "risk_assessment" && "Risikoeinschätzung"}
+                              {key === "progress_evaluation" && "Verlaufsbewertung"}
+                            </label>
+                            <textarea
+                              value={structuredFormContent[key] ?? ""}
+                              onChange={(e) =>
+                                setStructuredFormContent((prev) => ({ ...prev, [key]: e.target.value }))
+                              }
+                              disabled={isFinalized}
+                              rows={3}
+                              className="min-h-touch w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                            />
+                          </div>
+                        ))}
+                        {!isFinalized && (
+                          <button
+                            type="button"
+                            onClick={() => handleSaveStructured(structuredFormContent)}
+                            disabled={structuredSaveLoading}
+                            className="min-h-touch rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-50"
+                          >
+                            {structuredSaveLoading ? "Speichern …" : "Speichern"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </>
+                ) : displayMessages.length === 0 && !isStreaming ? (
                   <p className="py-8 text-center text-gray-500 dark:text-gray-400">
                     Schreiben Sie eine Nachricht, um zu beginnen.
                   </p>
@@ -912,6 +1066,49 @@ export default function ChatPage() {
                   </p>
                 )}
                 <div className="mb-3 flex flex-wrap items-center gap-3">
+                  {/* View toggle: Chat | Structured */}
+                  <div className="flex min-h-touch rounded-lg border border-gray-300 dark:border-gray-600" role="group" aria-label="Ansicht">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("chat")}
+                      className={`min-h-touch rounded-l-lg px-3 py-2 text-sm ${
+                        viewMode === "chat"
+                          ? "bg-primary-500 text-white"
+                          : "bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                      }`}
+                    >
+                      📝 Chat
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("structured")}
+                      className={`min-h-touch rounded-r-lg px-3 py-2 text-sm ${
+                        viewMode === "structured"
+                          ? "bg-primary-500 text-white"
+                          : "bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                      }`}
+                    >
+                      🗂 Struktur
+                    </button>
+                  </div>
+                  {viewMode === "chat" && !isFinalized && messages.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleConvertToStructured}
+                      disabled={convertLoading}
+                      className="min-h-touch rounded-lg border border-primary-500 bg-primary-50 px-3 py-2 text-sm font-medium text-primary-800 hover:bg-primary-100 disabled:opacity-50 dark:bg-primary-900/30 dark:text-primary-200 dark:hover:bg-primary-900/50"
+                    >
+                      {convertLoading ? "…" : "✨ In Struktur umwandeln"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setInterventionDrawerOpen((o) => !o)}
+                    className="min-h-touch rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                    aria-expanded={interventionDrawerOpen}
+                  >
+                    💡 Interventionsideen
+                  </button>
                   {isFinalized && (
                     <span className="rounded bg-amber-100 px-2.5 py-1.5 text-sm font-medium text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
                       🔒 Abgeschlossen – keine Änderungen möglich

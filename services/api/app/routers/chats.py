@@ -15,13 +15,19 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import text
 from app.config import settings
-from app.db import get_session
+from app.db import get_session, session_scope
 from app.dependencies import require_auth, get_tenant_id, get_user_uuid
 from app.services.event_store import append_event
 from app.services.anonymization import anonymize
 from app.services.prompt_injection import sanitize_user_message
 from app.services.prompt_registry import get_system_prompt, ASSIST_KEYS
 from app.services.azure_openai import stream_chat
+from app.services.structured_document_service import (
+    get_by_conversation,
+    create_or_update,
+    generate_from_conversation,
+    validate_structured_content,
+)
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -77,6 +83,10 @@ class SendMessageBody(BaseModel):
     anonymization_enabled: bool = True
     safe_mode: bool = False
     user_message: str
+
+
+class StructuredContentBody(BaseModel):
+    content: dict
 
 
 def _session_gen(tenant_id: UUID, user_uuid: UUID):
@@ -478,6 +488,86 @@ async def delete_chat(
     return None
 
 
+# --- Structured Session Document (EPIC 14) ---
+@router.get("/{chat_id}/structured-document", response_model=dict)
+@limiter.limit("60/minute")
+async def get_structured_document(
+    request: Request,
+    chat_id: UUID,
+    _auth=Depends(require_auth),
+):
+    """Get latest structured document for conversation. 404 if none."""
+    tenant_id = get_tenant_id(request)
+    user_uuid = get_user_uuid(request)
+    if not tenant_id or not user_uuid:
+        raise HTTPException(status_code=401, detail="Auth required")
+
+    async with session_scope(tenant_id, str(user_uuid)) as session:
+        doc = await get_by_conversation(session, chat_id, tenant_id, user_uuid)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Structured document not found")
+    return doc
+
+
+@router.put("/{chat_id}/structured-document", response_model=dict)
+@limiter.limit("60/minute")
+async def put_structured_document(
+    request: Request,
+    chat_id: UUID,
+    body: StructuredContentBody,
+    _auth=Depends(require_auth),
+):
+    """Create or update structured document. Version increments on update. Blocks if chat finalized."""
+    tenant_id = get_tenant_id(request)
+    user_uuid = get_user_uuid(request)
+    if not tenant_id or not user_uuid:
+        raise HTTPException(status_code=401, detail="Auth required")
+
+    async with session_scope(tenant_id, str(user_uuid)) as session:
+        status = await _get_chat_status(session, chat_id, tenant_id, user_uuid)
+        if status is None:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        if status == "finalized":
+            raise HTTPException(status_code=409, detail=FINALIZED_ERR)
+        try:
+            doc = await create_or_update(
+                session, chat_id, tenant_id, user_uuid, str(user_uuid), body.content, is_manual_create=True
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+    return doc
+
+
+@router.post("/{chat_id}/structured-document/convert", response_model=dict)
+@limiter.limit("20/minute")
+async def convert_to_structured_document(
+    request: Request,
+    chat_id: UUID,
+    _auth=Depends(require_auth),
+):
+    """Convert conversation to structured documentation via LLM. No diagnosis; documentation only."""
+    tenant_id = get_tenant_id(request)
+    user_uuid = get_user_uuid(request)
+    if not tenant_id or not user_uuid:
+        raise HTTPException(status_code=401, detail="Auth required")
+
+    async with session_scope(tenant_id, str(user_uuid)) as session:
+        status = await _get_chat_status(session, chat_id, tenant_id, user_uuid)
+        if status is None:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        if status == "finalized":
+            raise HTTPException(status_code=409, detail=FINALIZED_ERR)
+        try:
+            doc, usage = await generate_from_conversation(
+                session, chat_id, tenant_id, user_uuid, str(user_uuid)
+            )
+        except ValueError as e:
+            if "valid JSON" in str(e):
+                raise HTTPException(status_code=422, detail="Conversion failed: invalid structure from AI")
+            raise HTTPException(status_code=400, detail=str(e))
+    return {"document": doc, "usage": usage}
+
+
 # Strict clinical mode modifier appended when safe_mode=True
 _SAFE_MODE_MODIFIER = (
     "\n\nFormuliere konservativ. Gib keine absoluten Aussagen. "
@@ -698,8 +788,12 @@ def _build_txt(chat_title: str, messages: list[tuple[str, str, datetime | None]]
     return "\n".join(lines)
 
 
-def _build_pdf(chat_title: str, messages: list[tuple[str, str, datetime | None]]) -> bytes:
-    """Build PDF export content. Minimal layout, UTF-8 safe."""
+def _build_pdf(
+    chat_title: str,
+    messages: list[tuple[str, str, datetime | None]],
+    structured_content: dict | None = None,
+) -> bytes:
+    """Build PDF export content. Minimal layout, UTF-8 safe. Optionally include structured document."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -749,6 +843,18 @@ def _build_pdf(chat_title: str, messages: list[tuple[str, str, datetime | None]]
         safe_content = content.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         story.append(Paragraph(safe_content, body_style))
         story.append(Spacer(1, 4 * mm))
+
+    if structured_content and any(str(v).strip() for v in structured_content.values()):
+        story.append(Spacer(1, 8 * mm))
+        story.append(Paragraph("Strukturierte Dokumentation", role_style))
+        for key, val in structured_content.items():
+            if not val or not str(val).strip():
+                continue
+            label = key.replace("_", " ").title()
+            story.append(Paragraph(f"{label}:", header_style))
+            safe_val = str(val).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            story.append(Paragraph(safe_val, body_style))
+            story.append(Spacer(1, 2 * mm))
 
     doc.build(story)
     return buffer.getvalue()
@@ -851,7 +957,11 @@ async def export_chat(
                 },
             )
 
-        pdf_bytes = _build_pdf(chat_title or "Chat", messages)
+        structured_content = None
+        doc = await get_by_conversation(session, chat_id, tenant_id, user_uuid)
+        if doc:
+            structured_content = doc.get("content")
+        pdf_bytes = _build_pdf(chat_title or "Chat", messages, structured_content)
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",

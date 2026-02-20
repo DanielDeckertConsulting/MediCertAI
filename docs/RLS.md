@@ -26,6 +26,8 @@ Application sets via `SET LOCAL app.tenant_id = '<uuid>'` at request start.
 | llm_audit_logs | `tenant_id::text = current_setting('app.tenant_id', true)` |
 | domain_events | `tenant_id::text = current_setting('app.tenant_id', true)` |
 | ai_responses | `tenant_id::text = current_setting('app.tenant_id', true)` |
+| structured_session_documents | `tenant_id::text = current_setting('app.tenant_id', true)` |
+| intervention_library | `tenant_id IS NULL OR tenant_id::text = current_setting(...)` (global + tenant) |
 
 ## Bypass
 

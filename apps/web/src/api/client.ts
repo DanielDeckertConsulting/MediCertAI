@@ -309,3 +309,81 @@ export async function generateCaseSummary(conversationIds: string[]): Promise<Ca
   }
   return res.json();
 }
+
+// --- Structured Session Document (EPIC 14) ---
+export const STRUCTURED_DOC_FIELDS = [
+  "session_context",
+  "presenting_symptoms",
+  "resources",
+  "interventions",
+  "homework",
+  "risk_assessment",
+  "progress_evaluation",
+] as const;
+
+export type StructuredContent = Record<(typeof STRUCTURED_DOC_FIELDS)[number], string>;
+
+export interface StructuredDocumentOut {
+  id: string;
+  conversation_id: string;
+  version: number;
+  content: StructuredContent;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getStructuredDocument(chatId: string): Promise<StructuredDocumentOut> {
+  const res = await apiFetch(`/chats/${chatId}/structured-document`);
+  if (!res.ok) {
+    if (res.status === 404) throw new Error("NOT_FOUND");
+    throw new Error(await res.text());
+  }
+  return res.json();
+}
+
+export async function putStructuredDocument(
+  chatId: string,
+  content: StructuredContent
+): Promise<StructuredDocumentOut> {
+  const res = await apiFetch(`/chats/${chatId}/structured-document`, {
+    method: "PUT",
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function convertToStructuredDocument(
+  chatId: string
+): Promise<{ document: StructuredDocumentOut; usage: Record<string, number> }> {
+  const res = await apiFetch(`/chats/${chatId}/structured-document/convert`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || "Konvertierung fehlgeschlagen.");
+  }
+  return res.json();
+}
+
+// --- Intervention Library (EPIC 14) ---
+export interface InterventionOut {
+  id: string;
+  category: string;
+  title: string;
+  description: string;
+  evidence_level: string | null;
+  references: string[] | null;
+}
+
+export async function listInterventions(category?: string): Promise<InterventionOut[]> {
+  const q = category ? `?category=${encodeURIComponent(category)}` : "";
+  const res = await apiFetch(`/interventions${q}`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function recordInterventionViewed(interventionId: string): Promise<void> {
+  const res = await apiFetch(`/interventions/${interventionId}/viewed`, { method: "POST" });
+  if (!res.ok) throw new Error(await res.text());
+}
