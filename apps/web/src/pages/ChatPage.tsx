@@ -80,7 +80,7 @@ function AssistModeSelect({
                   setOpen(false);
                 }}
                 className={`flex min-h-[44px] w-full items-center px-4 py-3 text-left text-sm leading-relaxed transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                  p.key === value ? "bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300" : ""
+                  p.key === value ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900" : ""
                 }`}
               >
                 {p.display_name}
@@ -221,7 +221,7 @@ function FolderSelect({
                 setOpen(false);
               }}
               className={`flex min-h-[44px] w-full items-center px-4 py-3 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                !value ? "bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300" : ""
+                !value ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900" : ""
               }`}
             >
               Nicht zugeordnet
@@ -236,7 +236,7 @@ function FolderSelect({
                   setOpen(false);
                 }}
                 className={`flex min-h-[44px] w-full items-center px-4 py-3 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                  value === f.id ? "bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300" : ""
+                  value === f.id ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900" : ""
                 }`}
               >
                 {f.name}
@@ -311,7 +311,7 @@ function ChatList({
               type="button"
               onClick={() => onFolderSelect(null)}
               className={`min-h-touch rounded px-2.5 py-1.5 text-left text-sm transition-colors ${
-                selectedFolderId === null ? "bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300" : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                selectedFolderId === null ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900" : "hover:bg-gray-100 dark:hover:bg-gray-700"
               }`}
             >
               Alle
@@ -319,9 +319,9 @@ function ChatList({
             <button
               type="button"
               onClick={() => onFolderSelect("unfiled")}
-              className={`min-h-touch rounded px-2.5 py-1.5 text-left text-sm transition-colors ${
-                selectedFolderId === "unfiled" ? "bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300" : "hover:bg-gray-100 dark:hover:bg-gray-700"
-              }`}
+className={`min-h-touch rounded px-2.5 py-1.5 text-left text-sm transition-colors ${
+              selectedFolderId === "unfiled" ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900" : "hover:bg-gray-100 dark:hover:bg-gray-700"
+            }`}
             >
               Nicht zugeordnet
             </button>
@@ -331,7 +331,7 @@ function ChatList({
                 type="button"
                 onClick={() => onFolderSelect(f.id)}
                 className={`min-h-touch rounded px-2.5 py-1.5 text-left text-sm transition-colors ${
-                  selectedFolderId === f.id ? "bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300" : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                  selectedFolderId === f.id ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900" : "hover:bg-gray-100 dark:hover:bg-gray-700"
                 }`}
               >
                 {f.name}
@@ -431,7 +431,7 @@ function ChatListItem({
   return (
     <li
       className={`flex min-h-touch items-center gap-2 rounded-lg px-3 py-2 md:px-2 md:py-2 ${
-        isSelected ? "bg-primary-100 dark:bg-primary-900/30" : "hover:bg-gray-100 dark:hover:bg-gray-700"
+        isSelected ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900" : "hover:bg-gray-100 dark:hover:bg-gray-700"
       }`}
     >
       {isEditing ? (

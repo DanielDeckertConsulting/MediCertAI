@@ -18,7 +18,7 @@ export default function Layout() {
   const linkClass = (to: string) =>
     `block rounded px-3 py-2.5 text-sm min-h-touch min-w-touch flex items-center ${
       location.pathname.startsWith(to)
-        ? "bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
+        ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900"
         : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
     }`;
 
