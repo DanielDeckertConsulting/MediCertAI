@@ -19,6 +19,13 @@ Application sets via `SET LOCAL app.tenant_id = '<uuid>'` at request start.
 | users | `tenant_id::text = current_setting('app.tenant_id', true)` |
 | prompts | `tenant_id IS NULL OR tenant_id::text = current_setting(...)` (global + tenant) |
 | audit_logs | `tenant_id::text = current_setting('app.tenant_id', true)` |
+| usage_records | `tenant_id::text = current_setting('app.tenant_id', true)` |
+| folders | `tenant_id::text = current_setting('app.tenant_id', true)` |
+| chats | `tenant_id::text = current_setting('app.tenant_id', true)` |
+| chat_messages | tenant + chat ownership join |
+| llm_audit_logs | `tenant_id::text = current_setting('app.tenant_id', true)` |
+| domain_events | `tenant_id::text = current_setting('app.tenant_id', true)` |
+| ai_responses | `tenant_id::text = current_setting('app.tenant_id', true)` |
 
 ## Bypass
 

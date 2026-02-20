@@ -60,3 +60,40 @@ async def stream_chat(
                 "completion_tokens": chunk_usage.completion_tokens or 0,
             }
     yield (None, usage)
+
+
+async def chat_completion(
+    *,
+    system_prompt: str,
+    messages: list[dict[str, str]],
+    deployment: str | None = None,
+) -> tuple[str, dict]:
+    """
+    Non-streaming chat completion. Returns (full_content, usage_dict).
+    Use for summarization and batch operations.
+    """
+    client = _client()
+    if not client:
+        raise RuntimeError("Azure OpenAI not configured")
+
+    dep = deployment or settings.azure_openai_deployment
+    all_messages: list[dict] = [{"role": "system", "content": system_prompt}]
+    all_messages.extend(messages)
+
+    response = await client.chat.completions.create(
+        model=dep,
+        messages=all_messages,
+        stream=False,
+    )
+
+    content = ""
+    if response.choices and response.choices[0].message.content:
+        content = response.choices[0].message.content
+
+    usage = {"prompt_tokens": 0, "completion_tokens": 0}
+    if response.usage:
+        usage = {
+            "prompt_tokens": response.usage.prompt_tokens or 0,
+            "completion_tokens": response.usage.completion_tokens or 0,
+        }
+    return (content, usage)

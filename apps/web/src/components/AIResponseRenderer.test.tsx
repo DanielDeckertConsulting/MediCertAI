@@ -31,15 +31,18 @@ describe("AIResponseRenderer", () => {
     expect(screen.getByRole("button", { name: /Do It/i })).toBeTruthy();
   });
 
-  it("shows confidence badge when < 1", () => {
-    render(<AIResponseRenderer blocks={[]} confidence={0.85} />);
-    expect(screen.getByText(/85%/)).toBeTruthy();
+  it("always shows KI-Entwurf safety badge", () => {
+    const { container } = render(<AIResponseRenderer blocks={[]} />);
+    expect(container.textContent).toMatch(
+      /KI-Entwurf – fachliche Prüfung erforderlich/
+    );
   });
 
-  it("shows needs review badge when flagged", () => {
-    render(
-      <AIResponseRenderer blocks={[]} confidence={0.8} needsReview />
+  it("shows Modellvertrauen when confidence provided", () => {
+    const { container } = render(
+      <AIResponseRenderer blocks={[]} confidence={0.85} />
     );
-    expect(screen.getByText(/Review empfohlen/)).toBeTruthy();
+    expect(container.textContent).toMatch(/KI-Entwurf/);
+    expect(container.textContent).toMatch(/Modellvertrauen: 85%/);
   });
 });

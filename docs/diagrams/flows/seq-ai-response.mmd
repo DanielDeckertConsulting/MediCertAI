@@ -1,0 +1,33 @@
+%% AI Response Rendering: User submits markdown, receives structured UI
+%% EPIC 13
+
+sequenceDiagram
+    participant U as User
+    participant SPA as Frontend
+    participant API as Backend API
+    participant SVC as AI Rendering Service
+    participant DB as PostgreSQL
+
+    U->>SPA: Paste markdown, click Verarbeiten
+    SPA->>API: POST /ai-responses { raw_markdown, entity_type, entity_id }
+    API->>SVC: process_markdown()
+    SVC->>SVC: Sanitize
+    alt Sanitization fails
+        SVC->>DB: INSERT domain_events (ai_response.sanitization_failed)
+        SVC-->>API: ValueError
+        API-->>SPA: 422
+    else OK
+        SVC->>SVC: Extract blocks, detect actions
+        SVC->>DB: INSERT ai_responses
+        SVC->>DB: INSERT domain_events (ai_response.created)
+        SVC-->>API: { structured_blocks, needs_review }
+        API-->>SPA: 200
+        SPA-->>U: Render AIResponseRenderer
+    end
+
+    opt User clicks action button
+        U->>SPA: Click action
+        SPA->>API: POST /ai-responses/actions/execute
+        API->>DB: INSERT domain_events (ai_response.action_executed)
+        API-->>SPA: 200
+    end

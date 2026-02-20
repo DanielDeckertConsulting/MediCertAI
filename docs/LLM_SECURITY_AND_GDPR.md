@@ -14,6 +14,7 @@
   - Base system prompt (static or config)
   - Assistenzmodus prompt (if enabled)
   - Preset prompt body (if selected)
+  - Safe-mode modifier (if safe_mode=true: conservative phrasing, no absolutes)
   - Anonymization instructions (if enabled)
 
 ### 1.2 Flow

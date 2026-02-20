@@ -54,19 +54,19 @@ Response: 200, Content-Type: text/event-stream
 
 - Flat or tree (MVP: flat or one level)
 - Folder: `id`, `name`, `tenant_id`, `parent_id` (optional)
-- Conversation: `folder_id` (nullable = "Unfiled")
+- Chat: `folder_id` (nullable = "Unfiled")
 
 ### 2.2 UI
 
 - Sidebar: List folders; "Unfiled" or default
 - Create/rename/delete folder
-- Drag conversation to folder (or dropdown)
+- Assign chat to folder via dropdown (or drag in future)
 - No circular references in MVP
 
 ### 2.3 State
 
 - `folders` from `GET /folders` (TanStack Query)
-- `conversations` from `GET /conversations?folder_id=...`
+- `chats` from `GET /chats?folder_id=...` or `GET /chats?unfiled_only=true`
 - Optimistic updates on create/rename/delete
 
 ---

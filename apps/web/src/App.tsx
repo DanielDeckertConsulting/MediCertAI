@@ -7,6 +7,7 @@ import FoldersPage from "./pages/FoldersPage";
 import AssistModesPage from "./pages/AssistModesPage";
 import AdminPage from "./pages/AdminPage";
 import AIResponsesPage from "./pages/AIResponsesPage";
+import PrivacyPage from "./pages/PrivacyPage";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
           <Route path="assist" element={<AssistModesPage />} />
           <Route path="admin" element={<AdminPage />} />
           <Route path="ping" element={<PingPage />} />
+          <Route path="privacy" element={<PrivacyPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/chat" replace />} />
       </Routes>

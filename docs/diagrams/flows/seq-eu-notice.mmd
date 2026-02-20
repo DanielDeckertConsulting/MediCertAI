@@ -1,0 +1,22 @@
+flowchart TD
+    subgraph Pages["Pages with EU Notice"]
+        Chat["/chat"]
+        Login["/login"]
+    end
+
+    subgraph Banner["EU Processing Notice Banner"]
+        Visible["Banner visible: 'Alle Daten werden innerhalb der EU verarbeitet.'"]
+        Dismiss["Ausblenden → localStorage"]
+        Learn["Mehr erfahren → /privacy"]
+    end
+
+    subgraph Privacy["Privacy Page"]
+        P["/privacy — Datenschutz"]
+    end
+
+    Chat --> Visible
+    Login --> Visible
+    Visible --> Dismiss
+    Visible --> Learn
+    Learn --> P
+    Dismiss --> Hidden[Banner hidden]

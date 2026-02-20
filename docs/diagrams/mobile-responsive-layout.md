@@ -41,7 +41,7 @@ flowchart LR
 ## Touch Targets
 
 - Primary actions: `min-h-touch` / `min-w-touch` (44px)
-- Applied to: nav links, create chat, send, back, ErrorBoundary retry
+- Applied to: nav links, create chat, send, dictation (mic), back, ErrorBoundary retry
 
 ## Design Tokens
 

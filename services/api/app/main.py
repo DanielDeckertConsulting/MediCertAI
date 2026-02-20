@@ -8,7 +8,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 
 from app.config import settings
-from app.routers import health, prompts, chats, ai_responses
+from app.routers import health, prompts, chats, ai_responses, folders, admin, cases
 from app.middleware.auth import auth_middleware, get_request_id
 
 structlog.configure(
@@ -69,4 +69,7 @@ async def startup():
 app.include_router(health.router, tags=["health"])
 app.include_router(prompts.router, prefix="/prompts", tags=["prompts"])
 app.include_router(chats.router, prefix="/chats", tags=["chats"])
+app.include_router(folders.router, prefix="/folders", tags=["folders"])
 app.include_router(ai_responses.router, prefix="/ai-responses", tags=["ai-responses"])
+app.include_router(admin.router, prefix="/admin", tags=["admin"])
+app.include_router(cases.router, prefix="/cases", tags=["cases"])

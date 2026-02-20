@@ -38,7 +38,8 @@ flowchart TB
         end
 
         subgraph Audit["Audit Pipeline"]
-            AuditLog[(Audit Table)]
+            AuditLogs[(audit_logs)]
+            UsageRecords[(usage_records)]
         end
     end
 
@@ -49,7 +50,8 @@ flowchart TB
     GW -->|Streaming| AO[Azure OpenAI]
     API --> PG
     API --> Blob
-    API --> AuditLog
+    API --> AuditLogs
+    API --> UsageRecords
     API --> KV
     API --> Queue
     API --> AI

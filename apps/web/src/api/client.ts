@@ -51,6 +51,14 @@ export interface ChatSummary {
   title: string;
   updated_at: string;
   is_favorite: boolean;
+  folder_id?: string | null;
+  status?: string;
+}
+
+export interface FolderOut {
+  id: string;
+  name: string;
+  created_at: string;
 }
 
 export interface MessageOut {
@@ -64,9 +72,17 @@ export interface ChatDetail {
   id: string;
   title: string;
   is_favorite: boolean;
+  folder_id?: string | null;
+  status?: string;
   created_at: string;
   updated_at: string;
   messages: MessageOut[];
+  /** Session context for Smart Context Banner */
+  last_message_at?: string | null;
+  first_message_at?: string | null;
+  total_tokens_in_session?: number;
+  /** Conversation metadata (e.g. safe_mode) */
+  metadata?: Record<string, unknown> | null;
 }
 
 export interface PromptSummary {
@@ -91,8 +107,15 @@ export async function createChat(title?: string): Promise<ChatSummary & { create
   return res.json();
 }
 
-export async function listChats(): Promise<ChatSummary[]> {
-  const res = await apiFetch("/chats");
+export async function listChats(params?: {
+  folderId?: string | null;
+  unfiledOnly?: boolean;
+}): Promise<ChatSummary[]> {
+  const sp = new URLSearchParams();
+  if (params?.folderId) sp.set("folder_id", params.folderId);
+  if (params?.unfiledOnly) sp.set("unfiled_only", "true");
+  const q = sp.toString();
+  const res = await apiFetch(`/chats${q ? `?${q}` : ""}`);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -105,7 +128,7 @@ export async function getChat(chatId: string): Promise<ChatDetail> {
 
 export async function patchChat(
   chatId: string,
-  patch: { title?: string; is_favorite?: boolean }
+  patch: { title?: string; is_favorite?: boolean; folder_id?: string | null; metadata?: Record<string, unknown> }
 ): Promise<ChatSummary & { updated_at: string }> {
   const res = await apiFetch(`/chats/${chatId}`, {
     method: "PATCH",
@@ -118,6 +141,12 @@ export async function patchChat(
 export async function deleteChat(chatId: string): Promise<void> {
   const res = await apiFetch(`/chats/${chatId}`, { method: "DELETE" });
   if (!res.ok) throw new Error(await res.text());
+}
+
+export async function finalizeChat(chatId: string): Promise<{ status: string }> {
+  const res = await apiFetch(`/chats/${chatId}/finalize`, { method: "POST" });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
 }
 
 export async function listPrompts(): Promise<PromptSummary[]> {
@@ -141,9 +170,44 @@ export async function updatePrompt(key: string, body: string): Promise<PromptDet
   return res.json();
 }
 
-export async function exportChat(chatId: string): Promise<Blob> {
-  const res = await apiFetch(`/chats/${chatId}/export.txt`);
+// --- Folders API ---
+export async function listFolders(): Promise<FolderOut[]> {
+  const res = await apiFetch("/folders");
   if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function createFolder(name: string): Promise<FolderOut> {
+  const res = await apiFetch("/folders", {
+    method: "POST",
+    body: JSON.stringify({ name: name.trim() }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function patchFolder(folderId: string, name: string): Promise<FolderOut> {
+  const res = await apiFetch(`/folders/${folderId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ name: name.trim() }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function deleteFolder(folderId: string): Promise<void> {
+  const res = await apiFetch(`/folders/${folderId}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+export type ExportFormat = "txt" | "pdf";
+
+export async function exportChat(chatId: string, format: ExportFormat = "txt"): Promise<Blob> {
+  const res = await apiFetch(`/chats/${chatId}/export?format=${format}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Export failed: ${res.status}`);
+  }
   return res.blob();
 }
 
@@ -224,5 +288,24 @@ export async function executeAIAction(params: {
     body: JSON.stringify(params),
   });
   if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+// --- Case Summary (Cross-Conversation) ---
+export interface CaseSummaryOut {
+  case_summary: string;
+  trends: string[];
+  treatment_evolution: string;
+}
+
+export async function generateCaseSummary(conversationIds: string[]): Promise<CaseSummaryOut> {
+  const res = await apiFetch("/cases/summary", {
+    method: "POST",
+    body: JSON.stringify({ conversation_ids: conversationIds }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || "Fallzusammenfassung konnte nicht erstellt werden.");
+  }
   return res.json();
 }

@@ -35,6 +35,40 @@
         "previous_version": "number",
         "new_version": "number"
       }
+    },
+    "folder.created": {
+      "description": "Folder created",
+      "payload": {
+        "folder_id": "string",
+        "name": "string"
+      }
+    },
+    "folder.renamed": {
+      "description": "Folder renamed (no PII in payload)",
+      "payload": {
+        "folder_id": "string"
+      }
+    },
+    "folder.deleted": {
+      "description": "Folder deleted; chats moved to Unfiled",
+      "payload": {
+        "folder_id": "string",
+        "chats_moved": "number"
+      }
+    },
+    "chat.folder_changed": {
+      "description": "Chat assigned to different folder",
+      "payload": {
+        "chat_id": "string",
+        "old_folder_id": "string|null",
+        "new_folder_id": "string|null"
+      }
+    },
+    "chat.finalized": {
+      "description": "Chat locked/finalized for medico-legal documentation; no further modifications allowed",
+      "payload": {
+        "chat_id": "string"
+      }
     }
   }
 }

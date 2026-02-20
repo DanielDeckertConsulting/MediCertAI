@@ -9,7 +9,7 @@ export interface StreamCallbacks {
 
 export async function streamChatMessage(
   chatId: string,
-  body: { assist_mode_key: string; anonymization_enabled: boolean; user_message: string },
+  body: { assist_mode_key: string; anonymization_enabled: boolean; safe_mode?: boolean; user_message: string },
   callbacks: StreamCallbacks
 ): Promise<void> {
   const res = await apiFetchStream(`/chats/${chatId}/messages`, {

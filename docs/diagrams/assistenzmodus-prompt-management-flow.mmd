@@ -1,0 +1,24 @@
+%% Assistenzmodus: Systemprompt-Vorlagen anzeigen und bearbeiten
+%% Flow: Nutzer öffnet /assist, listet Vorlagen, bearbeitet, speichert
+
+sequenceDiagram
+    participant U as User
+    participant SPA as AssistModesPage
+    participant API as Backend API
+    participant DB as PostgreSQL
+
+    U->>SPA: Navigate to /assist
+    SPA->>API: GET /prompts
+    API-->>SPA: [{ key, display_name, version }]
+    SPA->>API: GET /prompts/{key}/latest (per key)
+    API->>DB: SELECT body FROM prompt_versions
+    DB-->>API: body, version
+    API-->>SPA: [{ key, display_name, version, body }]
+    SPA-->>U: Render editable cards
+
+    U->>SPA: Edit body, click Speichern
+    SPA->>API: PATCH /prompts/{key} { body }
+    API->>DB: INSERT prompt_versions (new version)
+    DB-->>API: OK
+    API-->>SPA: { key, version, body }
+    SPA-->>U: Show updated, invalidate cache

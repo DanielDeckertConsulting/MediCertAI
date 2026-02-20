@@ -31,8 +31,9 @@ All tables with tenant data must include `tenant_id` and enforce RLS:
 | conversations | FK → tenants | ✅ |
 | messages | via conversations | ✅ (join check) |
 | preset_prompts | FK → tenants (nullable for global) | ✅ |
-| audit_log | FK → tenants | ✅ |
-| usage | FK → tenants | ✅ |
+| audit_logs | FK → tenants | ✅ |
+| llm_audit_logs | FK → tenants | ✅ |
+| usage_records | FK → tenants | ✅ |
 
 ---
 
@@ -152,10 +153,11 @@ async def tenant_context(request, call_next):
 
 ## 7. Audit Trail
 
-- `audit_log` table: `tenant_id`, `user_id`, `action`, `entity_type`, `entity_id`, `ts`
-- No PII in audit payload
+- `audit_logs` table: `tenant_id`, `actor_id`, `action`, `entity_type`, `entity_id`, `assist_mode`, `model_name`, `model_version`, `input_tokens`, `output_tokens`, `ts` (extended 2025-02-20 for LLM actions)
+- `usage_records` table: `tenant_id`, `user_id`, `ts`, `assist_mode`, `model_name`, `input_tokens`, `output_tokens` — for KPI aggregation
+- No PII in audit payload; no prompt/response content
 - Retain per retention policy
-- Queryable per tenant only (RLS)
+- Queryable per tenant only (RLS); Admin scope=tenant, User scope=me
 
 ---
 

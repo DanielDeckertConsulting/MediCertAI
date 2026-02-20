@@ -5,17 +5,28 @@ import { useQuery } from "@tanstack/react-query";
 import {
   createChat,
   deleteChat,
+  exportChat,
+  finalizeChat,
+  generateCaseSummary,
   getChat,
   listChats,
+  listFolders,
   listPrompts,
   patchChat,
+  type CaseSummaryOut,
   type ChatSummary,
+  type ExportFormat,
+  type FolderOut,
   type MessageOut,
   type PromptSummary,
 } from "../api/client";
-import { exportChat } from "../api/client";
 import { streamChatMessage } from "../api/streamChat";
 import { ChatMessageMarkdown } from "../components/ChatMessageMarkdown";
+import { AIConfidenceBadge } from "../components/AIConfidenceBadge";
+import { SmartContextBanner } from "../components/SmartContextBanner";
+import { CaseSummaryModal } from "../components/CaseSummaryModal";
+import { EUProcessingNotice } from "../components/compliance/EUProcessingNotice";
+import { VoiceInputButton } from "../components/VoiceInputButton";
 
 /** Custom dropdown for assist mode — avoids native select clipping on mobile. */
 function AssistModeSelect({
@@ -82,6 +93,162 @@ function AssistModeSelect({
   );
 }
 
+/** Export dropdown: TXT or PDF. */
+function ExportDropdown({
+  chatId,
+  onExport,
+  disabled,
+}: {
+  chatId: string;
+  onExport: (id: string, format: ExportFormat, e: React.MouseEvent) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => !disabled && setOpen(!open)}
+        disabled={disabled}
+        className="min-h-touch min-w-touch rounded p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-600 disabled:opacity-50"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Exportieren"
+      >
+        ⬇
+      </button>
+      {open && (
+        <ul
+          role="menu"
+          className="absolute right-0 bottom-full z-50 mb-1 min-w-[160px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+        >
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => {
+                onExport(chatId, "txt", e);
+                setOpen(false);
+              }}
+              className="flex min-h-[44px] w-full items-center px-4 py-3 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              Export als TXT
+            </button>
+          </li>
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => {
+                onExport(chatId, "pdf", e);
+                setOpen(false);
+              }}
+              className="flex min-h-[44px] w-full items-center px-4 py-3 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              Export als PDF
+            </button>
+          </li>
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Folder select dropdown for assigning chat to folder. */
+function FolderSelect({
+  value,
+  folders,
+  onChange,
+  disabled,
+}: {
+  value: string | null;
+  folders: FolderOut[];
+  onChange: (folderId: string | null) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selectedLabel =
+    value === null || value === ""
+      ? "Nicht zugeordnet"
+      : folders.find((f) => f.id === value)?.name ?? "Nicht zugeordnet";
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => !disabled && setOpen(!open)}
+        disabled={disabled}
+        className="min-h-touch min-w-touch flex items-center gap-2 rounded border border-gray-300 bg-white px-3 py-2.5 text-left text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Ordner auswählen"
+      >
+        <span className="truncate">{selectedLabel}</span>
+        <span className="ml-1 shrink-0 text-gray-500 dark:text-gray-400" aria-hidden>
+          {open ? "▴" : "▾"}
+        </span>
+      </button>
+      {open && (
+        <ul
+          role="listbox"
+          className="absolute bottom-full left-0 z-50 mb-1 w-full min-w-[200px] max-w-[280px] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+          style={{ maxHeight: "min(240px, 50vh)" }}
+        >
+          <li role="option" aria-selected={value === null || value === ""}>
+            <button
+              type="button"
+              onClick={() => {
+                onChange(null);
+                setOpen(false);
+              }}
+              className={`flex min-h-[44px] w-full items-center px-4 py-3 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                !value ? "bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300" : ""
+              }`}
+            >
+              Nicht zugeordnet
+            </button>
+          </li>
+          {folders.map((f) => (
+            <li key={f.id} role="option" aria-selected={value === f.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(f.id);
+                  setOpen(false);
+                }}
+                className={`flex min-h-[44px] w-full items-center px-4 py-3 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                  value === f.id ? "bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300" : ""
+                }`}
+              >
+                {f.name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 const ASSIST_DEFAULTS: PromptSummary[] = [
   { key: "CHAT_WITH_AI", display_name: "Chat with AI", version: 1 },
   { key: "SESSION_SUMMARY", display_name: "Session Summary", version: 1 },
@@ -97,34 +264,96 @@ function ChatList({
   chatId,
   titleFilter,
   onFilterChange,
+  folders,
+  selectedFolderId,
+  onFolderSelect,
   onCreateChat,
   onSelectChat,
   onRename,
   onFavorite,
   onExport,
   onDelete,
+  onGenerateCaseSummary,
   editingId,
   editingTitle,
   onEditingChange,
   isLoading,
+  exportLoading,
+  caseSummaryLoading,
 }: {
   chats: ChatSummary[];
   chatId: string | null;
   titleFilter: string;
   onFilterChange: (v: string) => void;
+  folders: FolderOut[];
+  selectedFolderId: string | null;
+  onFolderSelect: (id: string | null) => void;
   onCreateChat: () => void;
   onSelectChat: (id: string) => void;
   onRename: (id: string) => void;
   onFavorite: (c: ChatSummary, e: React.MouseEvent) => void;
-  onExport: (id: string, e: React.MouseEvent) => void;
+  onExport: (id: string, format: ExportFormat, e: React.MouseEvent) => void;
   onDelete: (id: string, e: React.MouseEvent) => void;
+  onGenerateCaseSummary?: () => void;
   editingId: string | null;
   editingTitle: string;
   onEditingChange: (id: string | null, title: string) => void;
   isLoading?: boolean;
+  exportLoading?: boolean;
+  caseSummaryLoading?: boolean;
 }) {
   return (
     <div className="flex flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+      <div className="shrink-0 border-b border-gray-200 p-2 dark:border-gray-600">
+        <p className="mb-1 px-2 text-xs font-medium text-gray-500 dark:text-gray-400">Ordner</p>
+        <div className="flex flex-wrap gap-1 overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => onFolderSelect(null)}
+              className={`min-h-touch rounded px-2.5 py-1.5 text-left text-sm transition-colors ${
+                selectedFolderId === null ? "bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300" : "hover:bg-gray-100 dark:hover:bg-gray-700"
+              }`}
+            >
+              Alle
+            </button>
+            <button
+              type="button"
+              onClick={() => onFolderSelect("unfiled")}
+              className={`min-h-touch rounded px-2.5 py-1.5 text-left text-sm transition-colors ${
+                selectedFolderId === "unfiled" ? "bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300" : "hover:bg-gray-100 dark:hover:bg-gray-700"
+              }`}
+            >
+              Nicht zugeordnet
+            </button>
+            {folders.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => onFolderSelect(f.id)}
+                className={`min-h-touch rounded px-2.5 py-1.5 text-left text-sm transition-colors ${
+                  selectedFolderId === f.id ? "bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300" : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                }`}
+              >
+                {f.name}
+              </button>
+            ))}
+        </div>
+        {selectedFolderId &&
+          selectedFolderId !== "unfiled" &&
+          chats.length > 0 &&
+          onGenerateCaseSummary && (
+          <div className="mt-2 px-2">
+            <button
+              type="button"
+              onClick={onGenerateCaseSummary}
+              disabled={caseSummaryLoading}
+              className="min-h-touch w-full rounded border border-primary-500 bg-transparent px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:border-primary-400 dark:text-primary-400 dark:hover:bg-primary-900/30 disabled:opacity-50"
+            >
+              {caseSummaryLoading ? "Wird erstellt…" : "Fallzusammenfassung generieren"}
+            </button>
+          </div>
+        )}
+      </div>
       <div className="border-b border-gray-200 p-3 dark:border-gray-600">
         <button
           type="button"
@@ -164,6 +393,7 @@ function ChatList({
                 onFavorite={onFavorite}
                 onExport={onExport}
                 onDelete={onDelete}
+                exportLoading={exportLoading ?? false}
               />
             ))}
           </ul>
@@ -184,6 +414,7 @@ function ChatListItem({
   onFavorite,
   onExport,
   onDelete,
+  exportLoading,
 }: {
   chat: ChatSummary;
   isSelected: boolean;
@@ -193,8 +424,9 @@ function ChatListItem({
   onRename: () => void;
   onEditingChange: (id: string | null, title: string) => void;
   onFavorite: (c: ChatSummary, e: React.MouseEvent) => void;
-  onExport: (id: string, e: React.MouseEvent) => void;
+  onExport: (id: string, format: ExportFormat, e: React.MouseEvent) => void;
   onDelete: (id: string, e: React.MouseEvent) => void;
+  exportLoading?: boolean;
 }) {
   return (
     <li
@@ -225,39 +457,47 @@ function ChatListItem({
           >
             {chat.title}
           </button>
-          <div className="flex shrink-0 gap-0.5">
-            <button
-              type="button"
-              onClick={() => onEditingChange(chat.id, chat.title)}
-              className="min-h-touch min-w-touch rounded p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-600"
-              aria-label="Umbenennen"
-            >
-              ✏️
-            </button>
-            <button
-              type="button"
-              onClick={(e) => onFavorite(chat, e)}
-              className="min-h-touch min-w-touch rounded p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-600"
-              aria-label={chat.is_favorite ? "Favorit entfernen" : "Als Favorit markieren"}
-            >
-              {chat.is_favorite ? "★" : "☆"}
-            </button>
-            <button
-              type="button"
-              onClick={(e) => onExport(chat.id, e)}
-              className="min-h-touch min-w-touch rounded p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-600"
-              aria-label="Exportieren"
-            >
-              ⬇
-            </button>
-            <button
-              type="button"
-              onClick={(e) => onDelete(chat.id, e)}
-              className="min-h-touch min-w-touch rounded p-2 text-red-500 hover:bg-red-100 hover:text-red-700 dark:hover:bg-red-900/30"
-              aria-label="Löschen"
-            >
-              🗑
-            </button>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {chat.status === "finalized" ? (
+              <span
+                className="shrink-0 rounded px-2 py-1 text-xs font-medium text-amber-700 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300"
+                title="Abgeschlossen – keine Änderungen möglich"
+              >
+                🔒
+              </span>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onEditingChange(chat.id, chat.title)}
+                  className="min-h-touch min-w-touch rounded p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-600"
+                  aria-label="Umbenennen"
+                >
+                  ✏️
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => onFavorite(chat, e)}
+                  className="min-h-touch min-w-touch rounded p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-600"
+                  aria-label={chat.is_favorite ? "Favorit entfernen" : "Als Favorit markieren"}
+                >
+                  {chat.is_favorite ? "★" : "☆"}
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => onDelete(chat.id, e)}
+                  className="min-h-touch min-w-touch rounded p-2 text-red-500 hover:bg-red-100 hover:text-red-700 dark:hover:bg-red-900/30"
+                  aria-label="Löschen"
+                >
+                  🗑
+                </button>
+              </>
+            )}
+            <ExportDropdown
+              chatId={chat.id}
+              onExport={onExport}
+              disabled={exportLoading}
+            />
           </div>
         </>
       )}
@@ -269,19 +509,36 @@ export default function ChatPage() {
   const { conversationId } = useParams();
   const navigate = useNavigate();
   const [titleFilter, setTitleFilter] = useState("");
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [assistMode, setAssistMode] = useState<string>("CHAT_WITH_AI");
   const [anonymizationEnabled, setAnonymizationEnabled] = useState(true);
+  const [safeMode, setSafeMode] = useState(false);
   const [input, setInput] = useState("");
   const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
+  const [exportLoading, setExportLoading] = useState(false);
+  const [caseSummaryOpen, setCaseSummaryOpen] = useState(false);
+  const [caseSummaryLoading, setCaseSummaryLoading] = useState(false);
+  const [caseSummaryData, setCaseSummaryData] = useState<CaseSummaryOut | null>(null);
+  const [caseSummaryError, setCaseSummaryError] = useState<string | null>(null);
 
   const chatId = conversationId ?? null;
 
+  const { data: folders = [] } = useQuery({
+    queryKey: ["folders"],
+    queryFn: listFolders,
+  });
+
   const { data: chats = [], refetch: refetchChats, isError: chatsError, isLoading: chatsLoading } = useQuery({
-    queryKey: ["chats"],
-    queryFn: listChats,
+    queryKey: ["chats", selectedFolderId],
+    queryFn: () =>
+      selectedFolderId === "unfiled"
+        ? listChats({ unfiledOnly: true })
+        : selectedFolderId
+          ? listChats({ folderId: selectedFolderId })
+          : listChats(),
   });
 
   const { data: prompts = [], isError: promptsError } = useQuery({
@@ -358,18 +615,52 @@ export default function ChatPage() {
     [chatId, refetchChats, refetchChat]
   );
 
-  const handleExport = useCallback(
+  const handleFolderChange = useCallback(
+    async (folderId: string | null) => {
+      if (!chatId) return;
+      await patchChat(chatId, { folder_id: folderId });
+      await refetchChats();
+      await refetchChat();
+    },
+    [chatId, refetchChats, refetchChat]
+  );
+
+  const handleFinalize = useCallback(
     async (id: string, e: React.MouseEvent) => {
       e.stopPropagation();
-      const blob = await exportChat(id);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `chat-export-${id.slice(0, 8)}.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
+      try {
+        await finalizeChat(id);
+        await refetchChat();
+        await refetchChats();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Sperren fehlgeschlagen.");
+      }
     },
-    []
+    [refetchChat, refetchChats]
+  );
+
+  const handleExport = useCallback(
+    async (id: string, format: ExportFormat, e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (exportLoading) return;
+      setExportLoading(true);
+      try {
+        const blob = await exportChat(id, format);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const date = new Date().toISOString().slice(0, 10);
+        a.download = `clinai-chat-${id.slice(0, 8)}-${date}.${format}`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Export fehlgeschlagen.";
+        alert(msg);
+      } finally {
+        setExportLoading(false);
+      }
+    },
+    [exportLoading]
   );
 
   const handleSend = useCallback(async () => {
@@ -393,6 +684,7 @@ export default function ChatPage() {
       {
         assist_mode_key: assistMode,
         anonymization_enabled: anonymizationEnabled,
+        safe_mode: safeMode,
         user_message: text,
       },
       {
@@ -414,14 +706,62 @@ export default function ChatPage() {
         },
       }
     );
-  }, [input, chatId, isStreaming, assistMode, anonymizationEnabled, navigate, refetchChats, refetchChat]);
+  }, [input, chatId, isStreaming, assistMode, anonymizationEnabled, safeMode, navigate, refetchChats, refetchChat]);
 
   const handleEditingChange = useCallback((id: string | null, title: string) => {
     setEditingId(id);
     setEditingTitle(title);
   }, []);
 
+  const handleGenerateCaseSummary = useCallback(async () => {
+    const ids = filteredChats.map((c) => c.id);
+    if (ids.length === 0) return;
+    setCaseSummaryOpen(true);
+    setCaseSummaryLoading(true);
+    setCaseSummaryError(null);
+    setCaseSummaryData(null);
+    try {
+      const result = await generateCaseSummary(ids);
+      setCaseSummaryData(result);
+    } catch (e) {
+      setCaseSummaryError((e as Error).message);
+    } finally {
+      setCaseSummaryLoading(false);
+    }
+  }, [filteredChats]);
+
+  const handleCloseCaseSummary = useCallback(() => {
+    setCaseSummaryOpen(false);
+    setCaseSummaryData(null);
+    setCaseSummaryError(null);
+  }, []);
+
+  const handleSafeModeToggle = useCallback(
+    async (checked: boolean) => {
+      setSafeMode(checked);
+      if (chatId) {
+        try {
+          await patchChat(chatId, { metadata: { safe_mode: checked } });
+          await refetchChat();
+        } catch {
+          setSafeMode(!checked);
+        }
+      }
+    },
+    [chatId, refetchChat]
+  );
+
   const messages: MessageOut[] = chatDetail?.messages ?? [];
+  const isFinalized = chatDetail?.status === "finalized";
+
+  // Initialize safe_mode from conversation metadata when chat loads
+  useEffect(() => {
+    if (!chatId) {
+      setSafeMode(false);
+    } else if (chatDetail?.id === chatId) {
+      setSafeMode(!!chatDetail.metadata?.safe_mode);
+    }
+  }, [chatId, chatDetail?.id, chatDetail?.metadata]);
   const displayMessages = streamingContent
     ? [...messages, { id: "streaming", role: "assistant", content: streamingContent, created_at: "" }]
     : messages;
@@ -438,6 +778,7 @@ export default function ChatPage() {
   const showDetailOnMobile = !!chatId;
 
   return (
+    <>
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       {(chatsError || promptsError) && (
         <div className="rounded bg-amber-100 px-4 py-3 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
@@ -457,15 +798,21 @@ export default function ChatPage() {
             isLoading={chatsLoading}
             titleFilter={titleFilter}
             onFilterChange={setTitleFilter}
+            folders={folders}
+            selectedFolderId={selectedFolderId}
+            onFolderSelect={setSelectedFolderId}
             onCreateChat={handleCreateChat}
             onSelectChat={handleSelectChat}
             onRename={handleRename}
             onFavorite={handleFavorite}
             onExport={handleExport}
             onDelete={handleDeleteChat}
+            onGenerateCaseSummary={handleGenerateCaseSummary}
             editingId={editingId}
             editingTitle={editingTitle}
             onEditingChange={handleEditingChange}
+            exportLoading={exportLoading}
+            caseSummaryLoading={caseSummaryLoading}
           />
         </aside>
 
@@ -475,6 +822,9 @@ export default function ChatPage() {
             showDetailOnMobile ? "flex" : "hidden md:flex"
           }`}
         >
+          <div className="shrink-0 border-b border-gray-200 px-4 py-2 dark:border-gray-600">
+            <EUProcessingNotice />
+          </div>
           {!chatId ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-gray-500 dark:text-gray-400">
               <p className="text-center text-lg">Wählen Sie einen Chat oder erstellen Sie einen neuen.</p>
@@ -489,7 +839,7 @@ export default function ChatPage() {
           ) : (
             <>
               {/* Mobile: back button to chat list */}
-              <div className="flex shrink-0 items-center border-b border-gray-200 px-3 py-2 md:hidden">
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-3 py-2 md:hidden">
                 <button
                   type="button"
                   onClick={() => navigate("/chat")}
@@ -497,6 +847,11 @@ export default function ChatPage() {
                 >
                   ← Chats
                 </button>
+                {isFinalized && (
+                  <span className="rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
+                    🔒 Abgeschlossen
+                  </span>
+                )}
               </div>
               <div className="flex-1 overflow-y-auto p-4">
                 {displayMessages.length === 0 && !isStreaming ? (
@@ -504,7 +859,15 @@ export default function ChatPage() {
                     Schreiben Sie eine Nachricht, um zu beginnen.
                   </p>
                 ) : (
-                  <ul className="space-y-4">
+                  <>
+                    {chatDetail?.last_message_at && (
+                      <SmartContextBanner
+                        lastMessageAt={chatDetail.last_message_at}
+                        firstMessageAt={chatDetail.first_message_at}
+                        totalTokens={chatDetail.total_tokens_in_session ?? 0}
+                      />
+                    )}
+                    <ul className="space-y-4">
                     {displayMessages.map((m) => (
                       <li
                         key={m.id}
@@ -518,7 +881,10 @@ export default function ChatPage() {
                           }`}
                         >
                           {m.role === "assistant" ? (
-                            <ChatMessageMarkdown content={m.content} />
+                            <>
+                              <ChatMessageMarkdown content={m.content} />
+                              <AIConfidenceBadge />
+                            </>
                           ) : (
                             <p className="whitespace-pre-wrap text-sm">{m.content}</p>
                           )}
@@ -530,13 +896,14 @@ export default function ChatPage() {
                         </div>
                       </li>
                     ))}
-                  </ul>
+                    </ul>
+                  </>
                 )}
               </div>
 
               {/* Sticky input area */}
               <div className="shrink-0 border-t border-gray-200 p-4 dark:border-gray-600">
-                {!anonymizationEnabled && (
+                {!isFinalized && !anonymizationEnabled && (
                   <p
                     className="mb-2 text-xs text-amber-600 dark:text-amber-400"
                     role="status"
@@ -544,53 +911,127 @@ export default function ChatPage() {
                     Vermeiden Sie personenbezogene Angaben (z. B. Namen, Geburtsdaten).
                   </p>
                 )}
-                <div className="mb-3 flex flex-wrap gap-3">
-                  <AssistModeSelect
-                    value={assistMode}
-                    options={ASSIST_OPTIONS}
-                    onChange={setAssistMode}
-                  />
-                  <label className="flex min-h-touch cursor-pointer items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={anonymizationEnabled}
-                      onChange={(e) => setAnonymizationEnabled(e.target.checked)}
-                      className="h-[22px] w-[22px] rounded border-gray-300"
-                      aria-label="Anonymisierung einschalten"
+                <div className="mb-3 flex flex-wrap items-center gap-3">
+                  {isFinalized && (
+                    <span className="rounded bg-amber-100 px-2.5 py-1.5 text-sm font-medium text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
+                      🔒 Abgeschlossen – keine Änderungen möglich
+                    </span>
+                  )}
+                  {!isFinalized && (
+                    <>
+                      <AssistModeSelect
+                        value={assistMode}
+                        options={ASSIST_OPTIONS}
+                        onChange={setAssistMode}
+                      />
+                      <label className="flex min-h-touch cursor-pointer items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={safeMode}
+                          onChange={(e) => handleSafeModeToggle(e.target.checked)}
+                          className="h-[22px] w-[22px] rounded border-gray-300"
+                          aria-label="Strenger Sicherheitsmodus"
+                        />
+                        <span>Strenger Sicherheitsmodus</span>
+                        {safeMode && (
+                          <span
+                            className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/50 dark:text-amber-200"
+                            title="Konservative Formulierung, keine absoluten Aussagen"
+                          >
+                            Aktiv
+                          </span>
+                        )}
+                      </label>
+                      <FolderSelect
+                        value={chatDetail?.folder_id ?? null}
+                        folders={folders}
+                        onChange={handleFolderChange}
+                        disabled={!chatId}
+                      />
+                    </>
+                  )}
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Export:</span>
+                    <ExportDropdown
+                      chatId={chatId!}
+                      onExport={handleExport}
+                      disabled={!chatId || exportLoading}
                     />
-                    Anonymisieren
-                  </label>
+                  </div>
+                  {!isFinalized && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleFinalize(chatId!, e)}
+                      className="min-h-touch rounded border border-amber-500 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-900/30 dark:text-amber-200 dark:hover:bg-amber-900/50"
+                      aria-label="Chat abschließen und sperren"
+                    >
+                      🔒 Abschließen
+                    </button>
+                  )}
+                  {!isFinalized && (
+                    <label className="flex min-h-touch cursor-pointer items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={anonymizationEnabled}
+                        onChange={(e) => setAnonymizationEnabled(e.target.checked)}
+                        className="h-[22px] w-[22px] rounded border-gray-300"
+                        aria-label="Anonymisierung einschalten"
+                      />
+                      Anonymisieren
+                    </label>
+                  )}
                 </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSend();
+                {isFinalized ? (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+                    Dieser Chat wurde abgeschlossen. Export (TXT/PDF) ist weiterhin möglich.
+                  </p>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <VoiceInputButton
+                      onResult={(text) =>
+                        setInput((prev) => (prev.trim() ? `${prev} ${text}` : text))
                       }
-                    }}
-                    placeholder="Nachricht eingeben..."
-                    disabled={isStreaming}
-                    className="min-h-touch min-w-0 flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                    aria-label="Nachricht"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSend}
-                    disabled={!input.trim() || isStreaming}
-                    className="min-h-touch min-w-touch shrink-0 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-50"
-                  >
-                    Senden
-                  </button>
-                </div>
+                      disabled={isStreaming}
+                      aria-label="Diktieren"
+                    />
+                    <input
+                      type="text"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSend();
+                        }
+                      }}
+                      placeholder="Nachricht eingeben..."
+                      disabled={isStreaming}
+                      className="min-h-touch min-w-0 flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      aria-label="Nachricht"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSend}
+                      disabled={!input.trim() || isStreaming}
+                      className="min-h-touch min-w-touch shrink-0 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-50"
+                    >
+                      Senden
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}
         </main>
       </div>
     </div>
+    <CaseSummaryModal
+      isOpen={caseSummaryOpen}
+      onClose={handleCloseCaseSummary}
+      summary={caseSummaryData}
+      isLoading={caseSummaryLoading}
+      error={caseSummaryError}
+    />
+    </>
   );
 }

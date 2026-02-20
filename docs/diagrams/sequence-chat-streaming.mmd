@@ -2,18 +2,23 @@ sequenceDiagram
     participant U as User
     participant SPA as Frontend
     participant API as Backend API
+    participant DB as PostgreSQL
     participant GW as LLM Gateway
     participant AO as Azure OpenAI
 
-    U->>SPA: Type message + send
+    U->>SPA: Type or dictate message + send (assist_mode_key, safe_mode, anonymize)
     SPA->>API: POST /chats/{id}/messages (body)
     API->>API: Resolve tenant_id from JWT
     API->>API: Anonymize if enabled
+    API->>DB: Resolve system prompt by assist_mode_key (prompts, prompt_versions)
+    DB-->>API: prompt body
+    API->>API: If safe_mode: append strict modifier to system prompt
     API->>GW: request(system_prompt, messages)
     GW->>GW: Inject Assistenzmodus / preset
     GW->>AO: Chat Completions (stream)
     AO-->>GW: SSE stream
     GW-->>API: Stream chunks
     API-->>SPA: SSE stream
-    SPA-->>U: Render tokens
-    API->>API: Persist message (async, no prompt in logs)
+    SPA-->>U: Render tokens (Markdown: **Headline**, lists, bold)
+    API->>DB: Persist chat_message
+    API->>DB: INSERT usage_records + audit_logs (metadata only, no prompt/response)

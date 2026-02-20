@@ -1,0 +1,25 @@
+%% Safe Prompt Mode (Strenger Sicherheitsmodus) — toggle, persistence, prompt modification
+sequenceDiagram
+    participant U as User
+    participant SPA as Frontend
+    participant API as Backend API
+    participant DB as PostgreSQL
+
+    rect rgb(248, 250, 252)
+        Note over U,DB: Toggle persistence (per conversation)
+        U->>SPA: Toggle "Strenger Sicherheitsmodus" ON
+        SPA->>API: PATCH /chats/{id} { metadata: { safe_mode: true } }
+        API->>DB: UPDATE chats SET metadata = ...
+        DB-->>API: OK
+        API-->>SPA: 200
+        SPA->>SPA: Show "Aktiv" badge
+    end
+
+    rect rgb(255, 251, 235)
+        Note over U,DB: Send message (safe_mode in body)
+        U->>SPA: Type message + Senden
+        SPA->>API: POST /chats/{id}/messages { safe_mode: true, ... }
+        API->>API: Append strict modifier to system prompt
+        API->>API: Stream response (conservative phrasing)
+        API-->>SPA: SSE stream
+    end

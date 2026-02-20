@@ -1,6 +1,7 @@
 /** AI Response Renderer — structured blocks only. Mobile-first. */
 import { useState, useCallback } from "react";
 import type { StructuredBlock } from "../api/client";
+import { AIConfidenceBadge } from "./AIConfidenceBadge";
 
 function BlockHeading({ block }: { block: StructuredBlock }) {
   const Tag = `h${Math.min((block.level ?? 1) + 1, 6)}` as keyof JSX.IntrinsicElements;
@@ -149,24 +150,13 @@ export interface AIResponseRendererProps {
 
 export default function AIResponseRenderer({
   blocks,
-  confidence = 1,
+  confidence,
   needsReview = false,
   onActionClick,
 }: AIResponseRendererProps) {
+  const showConfidence = confidence != null && confidence >= 0 && confidence <= 1;
   return (
     <div className="space-y-2 text-left">
-      {confidence < 1 && (
-        <div className="flex items-center gap-2 rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2">
-          <span className="text-sm text-gray-600 dark:text-gray-300">
-            KI-Vertrauen: {(confidence * 100).toFixed(0)}%
-          </span>
-          {needsReview && (
-            <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
-              Review empfohlen
-            </span>
-          )}
-        </div>
-      )}
       {blocks.map((block, i) => {
         switch (block.type) {
           case "heading":
@@ -198,6 +188,7 @@ export default function AIResponseRenderer({
             ) : null;
         }
       })}
+      <AIConfidenceBadge confidence={showConfidence ? confidence : undefined} />
     </div>
   );
 }
