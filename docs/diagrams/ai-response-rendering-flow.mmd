@@ -1,0 +1,30 @@
+flowchart TB
+    subgraph Input
+        MD[Raw Markdown]
+    end
+
+    subgraph Pipeline
+        S1[1. Sanitize]
+        S2[2. Block Extract]
+        S3[3. Action Detect]
+    end
+
+    subgraph Store
+        EVT[domain_events]
+        AR[ai_responses]
+    end
+
+    subgraph Output
+        UI[Structured UI]
+        ACT[Action Button]
+    end
+
+    MD --> S1
+    S1 -->|OK| S2
+    S1 -->|FAIL| EVT
+    S2 --> S3
+    S3 --> EVT
+    S3 --> AR
+    AR --> UI
+    AR --> ACT
+    ACT -->|click| EVT

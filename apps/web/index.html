@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="de" class="overflow-x-hidden">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ClinAI</title>
+  </head>
+  <body>
+    <div id="root">
+      <div style="padding: 2rem; font-family: system-ui; text-align: center;">
+        Laden…
+      </div>
+    </div>
+    <script type="module">
+      (async function () {
+        window.__bootError = null;
+        try {
+          await import('/src/main.tsx');
+        } catch (e) {
+          window.__bootError = e;
+          document.getElementById('root').innerHTML =
+            '<div style="padding:2rem;font-family:system-ui;max-width:600px;margin:0 auto">' +
+            '<h2 style="color:#b91c1c">Fehler beim Laden</h2>' +
+            '<pre style="background:#fef2f2;padding:1rem;overflow:auto;font-size:12px">' +
+            (e instanceof Error ? e.message + '\n\n' + e.stack : String(e)) +
+            '</pre></div>';
+        }
+      })();
+    </script>
+  </body>
+</html>

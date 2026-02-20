@@ -1,0 +1,27 @@
+---
+description: Domain rules for events and projections (event-sourcing / event-log)
+alwaysApply: true
+---
+
+# Domain rules — events and projections
+
+Apply to any event-log–first or event-sourced system. Events are immutable; projections are derived, rebuildable read models.
+
+## Event types
+
+- **New event types** must be **documented** (in a schema, docs, or code comments) and **versioned** via a `schema_version` (or equivalent) field so consumers can evolve handling.
+- Store events with the version they were written under; handlers can branch on version when needed.
+
+## Projection handlers
+
+- **Idempotent:** Processing the same event(s) again must produce the same final state. Use upsert-by-key or replace-by-id; never assume “first write wins” for the same aggregate/entity.
+- **Deterministic:** Same input (event log slice) must always yield the same read-model update. No randomness, no “current time” for business logic (use event timestamp if needed).
+- **No side-effects:** Projection handlers must not perform external calls (HTTP, email, queues, other services). They only read events and write to the projection/read-model store. Side-effects belong in application or domain services that react to events separately.
+
+## When projections change
+
+- **Provide a rebuild strategy note** when adding or changing a projection: how to rebuild from the event log (e.g. “replay all events for entity X”, “truncate read table and re-run all projectors”), and any ordering or idempotency assumptions.
+
+## Naming
+
+- **Event types:** Keep naming consistent: `<entity>.<action>.<past_tense>` (e.g. `lead.created`, `call.outcome.recorded`, `report.submitted`). Avoid generic or inconsistent verbs.

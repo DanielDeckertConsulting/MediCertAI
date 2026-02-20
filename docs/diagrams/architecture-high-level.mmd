@@ -1,0 +1,55 @@
+flowchart TB
+    subgraph Users["Users"]
+        Therapist[Psychotherapist]
+    end
+
+    subgraph Azure["Azure Germany West Central"]
+        subgraph Frontend["Frontend"]
+            SPA[Single Page App]
+        end
+
+        subgraph Backend["Backend API"]
+            API[FastAPI / REST API]
+        end
+
+        subgraph Auth["Auth"]
+            B2C[Azure B2C]
+        end
+
+        subgraph LLM["LLM Gateway"]
+            GW[LLM Gateway Layer]
+        end
+
+        subgraph Data["Data Layer"]
+            PG[(Azure PostgreSQL)]
+            Blob[(Azure Blob)]
+        end
+
+        subgraph Observability["Observability"]
+            AI[Application Insights]
+        end
+
+        subgraph Secrets["Secrets"]
+            KV[Azure Key Vault]
+        end
+
+        subgraph Jobs["Background (optional MVP)"]
+            Queue[Azure Queue / Functions]
+        end
+
+        subgraph Audit["Audit Pipeline"]
+            AuditLog[(Audit Table)]
+        end
+    end
+
+    Therapist -->|HTTPS| SPA
+    SPA -->|API + JWT| API
+    API --> B2C
+    API --> GW
+    GW -->|Streaming| AO[Azure OpenAI]
+    API --> PG
+    API --> Blob
+    API --> AuditLog
+    API --> KV
+    API --> Queue
+    API --> AI

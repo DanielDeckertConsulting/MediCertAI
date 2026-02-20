@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant U as User
+    participant SPA as Frontend
+    participant API as Backend API
+    participant GW as LLM Gateway
+    participant AO as Azure OpenAI
+
+    U->>SPA: Type message + send
+    SPA->>API: POST /chats/{id}/messages (body)
+    API->>API: Resolve tenant_id from JWT
+    API->>API: Anonymize if enabled
+    API->>GW: request(system_prompt, messages)
+    GW->>GW: Inject Assistenzmodus / preset
+    GW->>AO: Chat Completions (stream)
+    AO-->>GW: SSE stream
+    GW-->>API: Stream chunks
+    API-->>SPA: SSE stream
+    SPA-->>U: Render tokens
+    API->>API: Persist message (async, no prompt in logs)

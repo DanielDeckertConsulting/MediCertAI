@@ -1,0 +1,10 @@
+---
+description: One ticket per PR, no scope creep, minimal cohesive changes
+alwaysApply: true
+---
+
+# PR and scope
+
+- **One ticket/feature per PR.** Do not bundle unrelated changes. If a feature is large, split into Phase 1 + follow-up tickets.
+- **No scope creep.** Keep the change set minimal and cohesive. Avoid unrelated refactors or "while we're here" edits.
+- When reviewing, check that changed files and behavior match the ticket scope; use the scope-guard skill when validating a PR.

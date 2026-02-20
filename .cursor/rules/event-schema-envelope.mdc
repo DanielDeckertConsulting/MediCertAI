@@ -1,0 +1,13 @@
+---
+description: Event envelope required fields and shared schema — update when adding events
+globs:
+  - shared/events/**
+  - backend/app/domain/events/**
+alwaysApply: false
+---
+
+# Event schema envelope and shared schema
+
+- **Canonical schema:** `shared/events/schema.json`. Every stored event must conform. Required envelope fields: `event_id`, `ts`, `actor`, `entity_type`, `entity_id`, `event_type`, `payload`, `source`, `schema_version`.
+- **When adding or changing event types:** Update the shared schema and keep `shared/events/types.py` and `shared/events/types.ts` aligned with `schema.json`. Update backend validation (e.g. `backend/app/domain/events/schemas.py`) and any event catalog in docs.
+- **Versioning:** Use `schema_version` (integer) on the envelope. When payload shape or semantics change, document the change and consider bumping schema_version or adding an upcaster; store the version that was written and do not overwrite historical events.

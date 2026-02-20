@@ -1,0 +1,56 @@
+---
+description: Frontend UI rules — FUTURISTIC_UI / Electric Blue (tokens, primitives, states)
+globs: frontend/**/*.tsx
+alwaysApply: false
+---
+
+# Futuristic UI — Electric Blue
+
+Design tokens and shared primitives live in `frontend/src/app/globals.css` and `frontend/src/components/ui/`. Follow these rules for all UI work.
+
+## Design tokens and primitives
+
+- **Use design tokens** from `:root` in `globals.css`: `--color-*`, `--space-*`, `--radius-*`, `--duration-*`, `--glow-accent`, etc.
+- **Use shared UI primitives** from `@/components/ui`: `Button`, `Card`, `Input`, `Badge`, `Section`, `PageContainer`. Compose with them; do not reinvent.
+- **No inline styles.** Use Tailwind classes that map to tokens (e.g. `bg-bg-primary`, `text-fg-primary`, `focus-visible:shadow-glow`).
+- **No hardcoded hex colors** outside `globals.css` / theme. In components, use token-based classes only (e.g. `bg-accent`, `text-fg-muted`, `border-white/10`).
+
+## Electric Blue as the only primary accent
+
+Electric Blue is the single primary accent. Use it only for:
+
+1. **Primary CTA** — e.g. main submit/action buttons (`Button variant="primary"` uses `bg-accent`).
+2. **Focus states** — e.g. `focus-visible:ring-accent`, `focus-visible:shadow-glow`, `focus-visible:border-accent`.
+3. **Selected state indicators** — e.g. active tab, selected row, current step.
+
+Do **not** use accent/blue for: decorative borders, icons (unless indicating selection), backgrounds of cards, or secondary elements. Avoid glow on non-primary elements.
+
+## Loading, empty, and error states
+
+- **User-facing lists** (tables, feeds, dashboards) must handle:
+  - **Loading:** Skeleton or spinner; no raw “loading…” text only.
+  - **Empty:** Clear empty state (e.g. “No items yet” + optional CTA).
+  - **Error:** Safe error message and retry where appropriate.
+- Do not render lists without at least one of these states.
+
+## Tone and reuse
+
+- **Clean, minimal, premium.** No flashy effects or glow on every element.
+- **Reusable components over one-off styling.** Prefer extending or composing from `@/components/ui` rather than new inline class strings for the same pattern.
+
+## Quick reference
+
+```tsx
+// ✅ GOOD — primitives + token-based classes
+import { Button, Card, Input } from "@/components/ui";
+<Button variant="primary">Save</Button>
+<Card className="border-white/5">...</Card>
+<p className="text-fg-muted text-sm">...</p>
+
+// ❌ BAD — inline style, hardcoded color
+<div style={{ color: "#6366f1" }}>...</div>
+<span className="text-[#ff0000]">...</span>
+
+// ❌ BAD — accent used for decoration
+<Card className="border-accent">...</Card>
+```

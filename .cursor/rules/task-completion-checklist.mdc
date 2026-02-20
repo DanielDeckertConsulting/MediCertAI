@@ -1,0 +1,14 @@
+---
+description: Before finishing — how to test, tests, impact, list states, no breaking without migration
+alwaysApply: true
+---
+
+# Task completion checklist
+
+Before considering a task done:
+
+- **How to test:** Provide clear "How to test" steps (commands or manual steps) so others can verify the change.
+- **Tests:** If behavior changed, add or adjust tests accordingly. New endpoints or validation rules need tests.
+- **Impact:** For user-facing or flow-critical work, state impact level (e.g. Golden Path: LOW / MEDIUM / HIGH) and ensure critical paths are covered by tests if impacted.
+- **Lists:** User-facing lists (tables, feeds, dashboards) must have loading, empty, and error states — not only the happy path.
+- **Breaking changes:** Avoid breaking changes without an explicit migration path (e.g. API contract, schema, or config). If unavoidable, document the migration and rollback.

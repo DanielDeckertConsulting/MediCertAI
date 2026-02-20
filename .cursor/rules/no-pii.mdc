@@ -1,0 +1,10 @@
+---
+description: No PII in logs, docs, or tests — use placeholders
+alwaysApply: true
+---
+
+# No PII in logs, docs, or tests
+
+- **Logs:** Do not log personally identifiable information (names, emails, phone numbers, addresses, user IDs that identify a person). Use opaque IDs, redaction, or structured fields that are explicitly non-PII. Same for error messages and stack context.
+- **Docs and diagrams:** No real names, emails, or other PII. Use placeholders (e.g. `user_123`, `example@example.com`, `+49-000-0000`).
+- **Tests and examples:** Use fake or placeholder data only. No production or real-person data in fixtures, snapshots, or test descriptions.

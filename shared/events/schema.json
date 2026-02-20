@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PraxisPilot Domain Events",
+  "description": "Canonical event schema. Events are immutable, append-only.",
+  "schema_version": "1",
+  "required_envelope": ["event_id", "timestamp", "actor", "entity_type", "entity_id", "event_type", "payload", "source", "schema_version"],
+  "event_types": {
+    "ai_response.created": {
+      "description": "AI markdown response processed and stored",
+      "payload": {
+        "raw_markdown": "string",
+        "structured_blocks": "array",
+        "model": "string",
+        "confidence": "number",
+        "version": "number"
+      }
+    },
+    "ai_response.action_executed": {
+      "description": "User executed an AI-recommended action",
+      "payload": {
+        "command": "string",
+        "label": "string",
+        "confidence": "number"
+      }
+    },
+    "ai_response.sanitization_failed": {
+      "description": "Markdown sanitization rejected unsafe content",
+      "payload": {
+        "reason": "string"
+      }
+    },
+    "ai_response.regenerated": {
+      "description": "AI response was regenerated; new version created",
+      "payload": {
+        "previous_version": "number",
+        "new_version": "number"
+      }
+    }
+  }
+}

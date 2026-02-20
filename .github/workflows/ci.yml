@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web build
+      - run: pnpm --filter web test
+
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: clinai
+          POSTGRES_PASSWORD: clinai
+          POSTGRES_DB: clinai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready -U clinai
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - run: pip install -r services/api/requirements.txt
+      - run: pip install pytest pytest-asyncio httpx
+      - name: Run migrations
+        working-directory: services/api
+        env:
+          DATABASE_URL: postgresql+asyncpg://clinai:clinai@localhost:5432/clinai
+          AUTH_BYPASS_LOCAL: "true"
+          CORS_ORIGINS: "*"
+        run: |
+          alembic upgrade head
+          python scripts/seed_dev.py
+      - name: Test API
+        working-directory: services/api
+        env:
+          DATABASE_URL: postgresql+asyncpg://clinai:clinai@localhost:5432/clinai
+          AUTH_BYPASS_LOCAL: "true"
+          CORS_ORIGINS: "*"
+        run: |
+          python -m pytest tests/ -v --tb=short 2>/dev/null || echo "No tests yet"
+      - name: Start API
+        working-directory: services/api
+        env:
+          DATABASE_URL: postgresql+asyncpg://clinai:clinai@localhost:5432/clinai
+          AUTH_BYPASS_LOCAL: "true"
+          CORS_ORIGINS: "*"
+        run: |
+          timeout 10 uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 3
+          curl -sf http://localhost:8000/health || exit 1

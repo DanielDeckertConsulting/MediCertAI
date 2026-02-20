@@ -1,0 +1,48 @@
+---
+description: DB migration rules — additive-first, backwards compatible, indexes, risk docs
+globs: backend/app/db/migrations/**/*.py
+alwaysApply: false
+---
+
+# Migration rules
+
+Apply to all Alembic (and any other DB) migrations. Keep production safe and rollbacks feasible.
+
+## Additive-first and backwards compatible
+
+- Prefer **additive** changes: new tables, new columns (nullable or with server default), new indexes. Old and new app versions can coexist.
+- Avoid **destructive** changes (DROP column/table, NOT NULL on existing column without default) unless there is an **explicit migration plan** (e.g. multi-step: add new column → backfill → switch app → remove old column in a later migration).
+- When renaming or changing column semantics: add new column, backfill, switch app code, then remove old column in a follow-up migration. Do not rely on a single `RENAME COLUMN` if multiple app versions run against the same DB.
+
+## Destructive changes and migration plan
+
+- Any DROP, NOT NULL on existing column, or breaking type change must have a documented plan (in the migration docstring or PR): steps, order, rollback approach, and data/availability risks.
+- Document **migration risks** in PR notes (e.g. lock duration, table size, need for maintenance window).
+
+## Indexes
+
+- **Ensure indexes** for expected query patterns (filters, sorts, joins). Add them in the same migration that introduces the table/column if the pattern is known; otherwise add in a dedicated migration when the pattern is introduced.
+- Name indexes consistently (e.g. `ix_<table>_<columns>`). Avoid duplicate or redundant indexes.
+
+## PR and docs
+
+- **Document any migration risks** in PR notes: lock risk, data volume, backwards compatibility, rollback steps. If a maintenance window is needed, say so.
+
+## Quick reference
+
+```python
+# ✅ GOOD — additive: new table + indexes for expected queries
+def upgrade():
+    op.create_table("lead_new_queue", ...)
+    op.create_index("ix_lead_new_queue_created_at", "lead_new_queue", ["created_at"])
+
+# ✅ GOOD — additive: new nullable column
+op.add_column("event_store", sa.Column("correlation_id", sa.Text(), nullable=True))
+
+# ❌ BAD — destructive without plan: NOT NULL on existing column
+op.alter_column("leads", "name", nullable=False)  # fails if existing rows have NULL
+
+# ✅ BETTER — multi-step: add column with default, then (later) set NOT NULL
+op.add_column("leads", sa.Column("name", sa.Text(), server_default="", nullable=False))
+# Then in app: backfill, then next migration can drop server_default if needed.
+```

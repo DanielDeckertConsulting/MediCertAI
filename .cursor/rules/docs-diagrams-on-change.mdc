@@ -1,0 +1,11 @@
+---
+description: When architecture or flow changes, update docs and Mermaid diagrams
+globs: docs/**/*.md
+alwaysApply: false
+---
+
+# Docs and diagrams when architecture or flow changes
+
+- **If architecture or flow changes:** Update `docs/architecture.md` and `docs/events.md` (or the relevant doc) and any affected **Mermaid diagrams** under `docs/diagrams/`. Diagrams must stay reproducible and free of PII in examples.
+- **Workflows, events, projections:** Any change to these must be reflected in docs and, where relevant, in a diagram (sequence, flow, or event catalog). Store diagrams under `docs/diagrams/` and link from the main docs.
+- **Keep docs concise** and linked to the relevant code. When adding a new bounded context, event type, or projection, add a short note and update the event catalog or architecture overview.

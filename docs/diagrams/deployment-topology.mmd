@@ -1,0 +1,40 @@
+flowchart LR
+    subgraph RG["Resource Group: clinai-mvp-rg"]
+        subgraph App["Compute"]
+            ASE[App Service Plan]
+            BE[Backend App Service]
+            FE[Frontend App Service / Static]
+        end
+
+        subgraph DB["Database"]
+            PG[(Azure PostgreSQL)]
+        end
+
+        subgraph Storage["Storage"]
+            Blob[(Blob Container)]
+        end
+
+        subgraph Identity["Identity"]
+            B2C[Azure B2C]
+        end
+
+        subgraph AI["Azure OpenAI"]
+            AO[Deployment]
+        end
+
+        subgraph Sec["Security"]
+            KV[Key Vault]
+        end
+
+        subgraph Monitor["Monitor"]
+            AI_insights[App Insights]
+        end
+    end
+
+    FE --> BE
+    BE --> PG
+    BE --> Blob
+    BE --> B2C
+    BE --> AO
+    BE --> KV
+    BE --> AI_insights

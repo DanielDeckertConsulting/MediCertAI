@@ -1,0 +1,12 @@
+---
+description: Backend API rules — thin routes, Pydantic, explicit errors, no business logic in routes
+globs: backend/app/**/*.py
+alwaysApply: false
+---
+
+# Backend (FastAPI) rules
+
+- **Keep the API thin:** Routes call services; services call domain and event store. No business logic in route handlers.
+- **Validate all inputs** with Pydantic models. Use explicit error responses: 400 (bad request), 404 (not found), 409 (conflict), 422 (validation error) with safe, non-leaking messages.
+- **No DB access in routes.** All persistence goes through event_service / event_store or dedicated service layers. Routes do not import repositories or run raw queries.
+- **Add tests** for new endpoints and validation rules (e.g. success, validation failure, not found).

@@ -1,0 +1,10 @@
+---
+description: Prefer simple solutions over overengineering
+alwaysApply: true
+---
+
+# Simplicity
+
+- **Prefer simple solutions** over overengineering. Choose the minimal design that meets the requirement and is maintainable.
+- Avoid unnecessary abstraction, extra layers, or premature scaling complexity. When in doubt, implement the straightforward version first; refactor when real need appears.
+- Use the arch-guard skill when reviewing architecture decisions or new services to keep complexity in check.

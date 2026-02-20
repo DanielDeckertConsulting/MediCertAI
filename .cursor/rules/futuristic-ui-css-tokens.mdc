@@ -1,0 +1,34 @@
+---
+description: Frontend CSS/tokens — Electric Blue theme, no hardcoded colors
+globs: frontend/**/*.css
+alwaysApply: false
+---
+
+# Futuristic UI — CSS & design tokens
+
+When editing frontend CSS (including `globals.css`), keep the Electric Blue theme consistent and token-based.
+
+## Tokens in `globals.css`
+
+- **Colors:** Define all palette in `:root` only. Use `--color-accent` (Electric Blue) as the single primary accent; do not add other primary accent colors.
+- **Electric Blue usage:** Reserve accent for primary CTA, focus states, and selected indicators. Glow (`--glow-accent`, `shadow-glow`) only for focus/primary — not for cards, badges, or decoration.
+- **No hardcoded hex in component CSS.** If a color is needed in a stylesheet, add a token in `:root` and reference it (e.g. `rgb(var(--color-fg-muted))`), or use Tailwind token-based classes in components instead.
+
+## Additive token changes
+
+- New colors or spacing: add to `:root` with a clear name (`--color-*`, `--space-*`, `--radius-*`, `--duration-*`).
+- Keep shadow/glow levels minimal (e.g. `--glow-accent` for focus only); avoid extra glow variables for decorative use.
+
+## Quick reference
+
+```css
+/* ✅ GOOD — token in :root, use via var() */
+:root {
+  --color-accent: 99 102 241;
+}
+.focus-ring { box-shadow: var(--glow-accent); }
+
+/* ❌ BAD — hardcoded hex outside :root */
+.some-class { color: #6366f1; }
+.card { box-shadow: 0 0 20px #6366f1; }
+```
