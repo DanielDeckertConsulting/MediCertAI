@@ -51,6 +51,7 @@ Analyze the feature description and classify:
   - HEALTHCARE: mandatory SECURITY + PRIVACY; conditional DEVOPS (if backend/infra touched); mandatory DOCS for user-facing/data-sensitive changes
 - Write to .cursor/scratchpad.md:  MODE_SELECTED=<STANDARD|HEALTHCARE>
 - Write to .cursor/scratchpad.md: DATA_SENSITIVITY=<NONE|PII|HEALTHCARE_SENSITIVE>
+- Write to .cursor/scratchpad.md: HEALTHCARE_MODE=<YES|NO>   (YES if MODE_SELECTED=HEALTHCARE else NO)
 
 Continue automatically into the chosen flow. Do not ask for confirmation.
 
@@ -74,6 +75,7 @@ Use AC_GENERATOR skill.
 - Map each criterion to at least one domain event
 - Golden Path impact: LOW / MEDIUM / HIGH  
 Output marker: PM_ACCEPTANCE_READY
+- Write to .cursor/scratchpad.md: GOLDEN_PATH_IMPACT=<LOW|MEDIUM|HIGH>
 
 **STAGE 2.5 — Manual Test Case Agent**  
 Use manual-test-agent subagent. Manual test plan (TC IDs, steps, expected results). Optional: UI/UX Consult (early).  
@@ -147,6 +149,7 @@ Use AC_GENERATOR skill.
 - Golden Path impact  
 - Compliance checkpoints (where to validate privacy/security)  
 Output marker: PM_ACCEPTANCE_READY
+- Write to .cursor/scratchpad.md: GOLDEN_PATH_IMPACT=<LOW|MEDIUM|HIGH>
 
 **STAGE 3 — SYSTEM_ARCHITECT_AGENT (pre-coding guardrail)**  
 Use system-architect-agent. Domain boundaries; event schema sanity; projection strategy; scaling risks.  
@@ -173,9 +176,50 @@ Use init-ui-agent. Apply FUTURISTIC_UI standards + loading/empty/error states. U
 Output marker: UI_REFINED  
 If no UI: skip to Stage 6.
 
-**STAGE 6 — SECURITY_AGENT (mandatory)**  
-Use security-agent. OWASP, STRIDE, input validation, authZ, rate limiting, event tamper/replay.  
-Output: SECURITY_OK or SECURITY_BLOCKERS. If BLOCKERS: loop DEV and/or Unit Test and/or Test Automation, re-run Stage 6.
+**STAGE 6 — REVIEW Agent (Auto: QUICK vs DEEP)**  
+Use review-agent subagent.
+
+**Determine REVIEW_MODE**
+- REVIEW_MODE = DEEP if any:
+  - HEALTHCARE_MODE=YES (i.e., MODE_SELECTED=HEALTHCARE)
+  - GOLDEN_PATH_IMPACT=HIGH
+  - COMPLEXITY=HIGH
+- Else REVIEW_MODE = QUICK
+
+**If COMPLEXITY is not available yet:**
+- Assume COMPLEXITY=MEDIUM by default (do NOT block)
+- (Optional) You may infer complexity from changes:
+  - new events >= 3 OR new projections >= 1 OR cross-layer refactors → COMPLEXITY=HIGH
+
+**Write markers**
+- Write to .cursor/scratchpad.md: REVIEW_MODE=<QUICK|DEEP>
+- (Optional) Write to .cursor/scratchpad.md: COMPLEXITY=<LOW|MEDIUM|HIGH> if inferred
+
+**QUICK Review Checklist**
+- Code quality: naming, readability, no duplication, minimal side effects
+- Mobile compliance (if frontend touched): no fixed widths; no horizontal scroll at 390px; touch targets >= 44px; tables have mobile strategy
+- Layer boundaries: domain logic not in UI; no DB in controllers; clean API boundaries
+- Event discipline: event naming consistency; shared types updated if needed; projections remain idempotent
+- Scope guard: no creep; only MVP slice
+
+**DEEP Review Checklist (includes QUICK + extra)**
+- Threat surface: new endpoints, auth boundaries, data exposure risks
+- Injection risks: validation, sanitization, unsafe string interpolation, SSRF-like patterns if any
+- Data validation strictness: input schemas, negative cases, error handling
+- Audit trace completeness: events include actor/ts/entity_id; sensitive actions traceable
+- If healthcare mode: ensure SECURITY_OK, PRIVACY_OK, DOCS_OK markers exist (if relevant gates ran)
+
+**Outputs**
+- REVIEW_RESULT: APPROVE or REQUEST_CHANGES
+- BLOCKERS: exact files + required changes (must-fix)
+- SUGGESTIONS: optional improvements
+- RISK_NOTES: what might bite later
+- If REQUEST_CHANGES:
+  - Provide minimal fix plan
+  - Loop back to STAGE 3/3.5/4 as needed (DEV, Unit Tests, Test Automation)
+  - Re-run this review stage until APPROVE
+
+Output marker: REVIEW_APPROVED
 
 **STAGE 7 — DATA_PROTECTION_AGENT (mandatory)**  
 Use data-protection-agent. Data classification; minimization & purpose; retention/deletion; logging compliance; DPIA flag if applicable.  
@@ -189,8 +233,39 @@ Output: DEVOPS_OK or DEVOPS_BLOCKERS. If BLOCKERS: loop DEV and/or Unit Test and
 Use documentation-agent. Pass Flow list from Manual Test Case Agent (Stage 3.5) if available; agent visualizes it as sequence diagram(s). Updated docs; at least one diagram (C4 or sequence), Mermaid/PlantUML only.  
 Output: DOCS_OK or DOCS_BLOCKERS. If BLOCKERS: update docs, re-run Stage 9.
 
-**STAGE 10 — REVIEW Agent**  
-Use arch-guard + PROJECTION_IDEMPOTENCY_CHECK + SCOPE_GUARD. Verify SECURITY_OK, PRIVACY_OK, DOCS_OK exist; no PII in logs. Verdict: APPROVE or REQUEST_CHANGES. If REQUEST_CHANGES: loop required stages, repeat review.  
+**STAGE 10 — REVIEW Agent (Auto: QUICK vs DEEP, Healthcare-default)**  
+Use review-agent subagent.
+
+**Determine REVIEW_MODE**
+- Default in healthcare mode: REVIEW_MODE = DEEP
+- Still apply rule:
+  - REVIEW_MODE = DEEP if HEALTHCARE_MODE=YES OR GOLDEN_PATH_IMPACT=HIGH OR COMPLEXITY=HIGH
+  - Otherwise QUICK (rare in healthcare, but allowed for internal non-PII small changes)
+
+**Write marker**
+- Write to .cursor/scratchpad.md: REVIEW_MODE=<QUICK|DEEP>
+
+**Healthcare Review Preconditions**
+- Ensure outputs exist (when relevant):
+  - SECURITY_OK (mandatory)
+  - PRIVACY_OK (mandatory)
+  - DOCS_OK (mandatory)
+  - DEVOPS_OK (only if backend/infra touched)
+- Confirm: no PII in logs/tests/docs/diagrams
+
+**QUICK Review Checklist**
+(same as Standard QUICK)
+
+**DEEP Review Checklist**
+(same as Standard DEEP) plus:
+- Verify SECURITY_OK/PRIVACY_OK/DOCS_OK are present and consistent with implementation
+- Confirm “no PII in logs” and “data minimization” respected
+
+**Outputs**
+- REVIEW_RESULT: APPROVE or REQUEST_CHANGES
+- BLOCKERS / SUGGESTIONS / RISK_NOTES
+- If REQUEST_CHANGES: minimal fix plan → loop DEV/Tests/Gates as required → re-run Stage 10 until APPROVE
+
 Output marker: REVIEW_APPROVED
 
 **STAGE 11 — PM Agent (Final Acceptance)**  
