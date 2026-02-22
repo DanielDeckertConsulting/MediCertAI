@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ChatSummary, FolderOut } from "../api/client";
@@ -88,6 +88,7 @@ describe("ChatPage desktop chat layout", () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.clearAllMocks();
   });
 
@@ -96,7 +97,7 @@ describe("ChatPage desktop chat layout", () => {
 
     const oldChats = await screen.findByLabelText("Alte Chats");
     expect(oldChats.className.includes("overflow-y-auto")).toBe(true);
-    expect(within(oldChats).getByText("Unfiled Verlauf")).toBeTruthy();
+    expect(await within(oldChats).findByText("Unfiled Verlauf")).toBeTruthy();
   });
 
   it("shows folder groups collapsed/expanded on desktop", async () => {
@@ -114,6 +115,7 @@ describe("ChatPage desktop chat layout", () => {
     renderChatPage();
 
     const oldChats = await screen.findByLabelText("Alte Chats");
+    await within(oldChats).findByText("Unfiled Verlauf");
     expect(within(oldChats).queryByRole("button", { name: "Umbenennen" })).toBeNull();
 
     fireEvent.click(within(oldChats).getByRole("button", { name: /Aktionen für Unfiled Verlauf/i }));
@@ -125,12 +127,12 @@ describe("ChatPage desktop chat layout", () => {
   it("keeps mobile inline actions available for regression safety", async () => {
     renderChatPage();
 
-    await screen.findByText("Unfiled Verlauf");
     const mobileList = document.querySelector(".md\\:hidden");
     expect(mobileList).toBeTruthy();
     if (!mobileList) return;
 
-    expect(within(mobileList as HTMLElement).getByRole("button", { name: "Umbenennen" })).toBeTruthy();
+    await within(mobileList as HTMLElement).findByText("Unfiled Verlauf");
+    expect(within(mobileList as HTMLElement).getAllByRole("button", { name: "Umbenennen" }).length).toBeGreaterThan(0);
   });
 
   it("persists desktop folder collapse state in localStorage", async () => {
