@@ -21,8 +21,8 @@
 |------|--------|----------|
 | 1 | Open a chat with messages | Chat detail loads |
 | 2 | Click Export (⬇) in sidebar or in chat input area | Dropdown opens with "Export als TXT" and "Export als PDF" |
-| 3 | Click "Export als PDF" | PDF downloads; filename like `clinai-chat-<title>-<YYYY-MM-DD>.pdf` |
-| 4 | Open PDF in viewer | Header: "ClinAI Export", title, export date; body: messages with timestamp and role labels (Therapeut:in / KI) |
+| 3 | Click "Export als PDF" | PDF downloads; filename like `mentalcarepilot-chat-<title>-<YYYY-MM-DD>.pdf` |
+| 4 | Open PDF in viewer | Header: "MentalCarePilot Export", title, export date; body: messages with timestamp and role labels (Therapeut:in / KI) |
 | 5 | Check UTF-8 | German umlauts (ä, ö, ü, ß) render correctly |
 
 ---

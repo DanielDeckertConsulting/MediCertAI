@@ -1,4 +1,4 @@
-# ClinAI MVP — Open Questions
+# MentalCarePilot MVP — Open Questions
 
 **Version:** 0.1  
 **Date:** 2025-02-19

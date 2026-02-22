@@ -1,4 +1,4 @@
-# HCMentalCareAI MVP
+# MentalCarePilot MVP
 
 AI-powered documentation assistant for psychotherapists. Azure-native, GDPR-ready, multi-tenant SaaS.
 

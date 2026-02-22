@@ -1,4 +1,4 @@
-# ClinAI MVP 0.1 — Requirements Analysis
+# MentalCarePilot MVP 0.1 — Requirements Analysis
 
 **Version:** 0.1  
 **Date:** 2025-02-19  
@@ -10,7 +10,7 @@
 
 | Attribute | Value |
 |-----------|-------|
-| Project | ClinAI |
+| Project | MentalCarePilot |
 | Target Users | Psychotherapists (Einzelpraxis + MVZ) |
 | Region | Azure Germany West Central |
 | Compliance | GDPR (must-have in V1) |

@@ -1,4 +1,4 @@
-# 🏥 ClinAI – Version 1 (MVP 0.1) – Complete Feature List
+# 🏥 MentalCarePilot – Version 1 (MVP 0.1) – Complete Feature List
 
 **Status:** Implemented features as of current codebase  
 **Date:** 2026-02-20
@@ -426,7 +426,7 @@ Storage:
 
 # Strategic Positioning After V1
 
-ClinAI is no longer:
+MentalCarePilot is no longer:
 
 > "A secure ChatGPT clone"
 

@@ -1,4 +1,4 @@
-# ClinAI MVP — Multi-Tenancy & Data Isolation Design
+# MentalCarePilot MVP — Multi-Tenancy & Data Isolation Design
 
 **Version:** 0.1  
 **Date:** 2025-02-19

@@ -6,7 +6,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
-const STORAGE_KEY = "clinai.eu_processing_notice.dismissed.v1";
+const STORAGE_KEY = "mentalcarepilot.eu_processing_notice.dismissed.v1";
 
 function getDismissed(): boolean {
   if (typeof window === "undefined") return false;

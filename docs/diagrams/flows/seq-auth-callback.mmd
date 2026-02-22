@@ -1,0 +1,23 @@
+%% Auth callback — web vs Capacitor redirect (B2C-ready)
+%% No PII.
+
+sequenceDiagram
+    participant U as User
+    participant SPA as SPA (web or WebView)
+    participant Config as Auth config
+    participant IdP as Identity Provider
+
+    Note over SPA,Config: Redirect URI from env or runtime
+    SPA->>Config: getAuthRedirectUri()
+    alt In Capacitor (native)
+        Config-->>SPA: capacitor://localhost/auth/callback
+    else Web
+        Config-->>SPA: origin + /auth/callback
+    end
+    SPA->>IdP: Initiate login (redirect_uri)
+    IdP->>U: Login UI
+    U->>IdP: Authenticate
+    IdP->>SPA: Redirect to callback (tokens/code in hash or query)
+    Note over SPA: Route: /auth/callback
+    SPA->>SPA: Process token/code, redirect to /
+    SPA->>U: Main app

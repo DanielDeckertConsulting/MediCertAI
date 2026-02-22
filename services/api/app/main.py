@@ -1,4 +1,4 @@
-"""ClinAI API — FastAPI application."""
+"""MentalCarePilot API — FastAPI application."""
 import uuid
 
 import structlog
@@ -22,7 +22,7 @@ log = structlog.get_logger()
 
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(
-    title="ClinAI API",
+    title="MentalCarePilot API",
     description="AI-powered documentation assistant for psychotherapists",
     version="0.1.0",
     openapi_url="/openapi.json",

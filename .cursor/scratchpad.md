@@ -106,3 +106,9 @@ Golden Path impact: LOW. No domain events (UI-only).
 
 **Follow-ups:**
 - Phase 2: Backend capture of logprobs/confidence from Azure OpenAI when available.
+
+RELEASE_READINESS_TLDR:
+- Status: ✅ Ready (or ⚠️ Needs follow-up: <1 line>)
+- Impact: <LOW|MEDIUM|HIGH> | Complexity: <LOW|MEDIUM|HIGH>
+- Gates: Tests ✅ | Review (<QUICK|DEEP>) ✅ | E2E <NONE|SMOKE|FULL> ✅
+- Key risk: <one liner>

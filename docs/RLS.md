@@ -1,4 +1,4 @@
-# ClinAI — Row-Level Security (RLS)
+# MentalCarePilot — Row-Level Security (RLS)
 
 **Database:** PostgreSQL  
 **Strategy:** Single DB, shared schema, RLS on tenant-scoped tables

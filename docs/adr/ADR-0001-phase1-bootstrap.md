@@ -2,7 +2,7 @@
 
 ## Context
 
-Initialize ClinAI MVP foundation from Phase 0 docs: monorepo, backend skeleton, frontend skeleton, DB + RLS, prompt scaffold.
+Initialize MentalCarePilot MVP foundation from Phase 0 docs: monorepo, backend skeleton, frontend skeleton, DB + RLS, prompt scaffold.
 
 ## Decision
 

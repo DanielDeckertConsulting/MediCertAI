@@ -38,6 +38,6 @@ describe("Layout", () => {
         <Layout />
       </MemoryRouter>
     );
-    expect(screen.getAllByText("ClinAI").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("MentalCarePilot").length).toBeGreaterThanOrEqual(1);
   });
 });

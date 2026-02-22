@@ -1,4 +1,4 @@
-# ClinAI — Database Migrations
+# MentalCarePilot — Database Migrations
 
 **Framework:** Alembic  
 **Location:** `services/api/alembic/`

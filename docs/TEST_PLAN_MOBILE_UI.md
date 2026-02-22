@@ -1,6 +1,6 @@
-# Manual Test Plan: Mobile-First UI for ClinAI
+# Manual Test Plan: Mobile-First UI for MentalCarePilot
 
-**Feature:** Mobile-first UI for ClinAI (Chat, Folders, Assistenzmodus, Admin)  
+**Feature:** Mobile-first UI for MentalCarePilot (Chat, Folders, Assistenzmodus, Admin)  
 **Target breakpoints:** 390px (phone), 768px (tablet), desktop  
 **Test case ID format:** TC-MOBILE-NNN
 

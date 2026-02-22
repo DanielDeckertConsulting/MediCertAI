@@ -1,0 +1,43 @@
+%% ClinAI — Mobile delivery: PWA + Capacitor
+%% Same SPA delivered as browser, installable PWA, and native iOS/Android.
+%% No PII in diagram.
+
+flowchart TB
+    subgraph Users["User access"]
+        Browser[Browser]
+        PWA[PWA installed]
+        Native[Native app]
+    end
+
+    subgraph Delivery["Delivery channels"]
+        Vite[Vite build]
+        Vite --> Dist["apps/web/dist"]
+        Dist --> Manifest[Web App Manifest]
+        Dist --> SW[Service Worker]
+        Dist --> Shell[App shell + assets]
+    end
+
+    subgraph Web["Web"]
+        Browser --> |"HTTPS"| Host[Web host / CDN]
+        PWA --> |"HTTPS (same)"| Host
+        Host --> Dist
+    end
+
+    subgraph Capacitor["Capacitor"]
+        Native --> Android[Android WebView]
+        Native --> iOS[iOS WebView]
+        Android --> |"Load"| Dist
+        iOS --> |"Load"| Dist
+    end
+
+    subgraph Auth["Auth redirect (B2C-ready)"]
+        IdP[Identity Provider]
+        WebCB["/auth/callback (web)"]
+        NativeCB["capacitor://localhost/auth/callback"]
+        IdP --> |"Web"| WebCB
+        IdP --> |"Native"| NativeCB
+        WebCB --> App[SPA]
+        NativeCB --> App
+    end
+
+    App --> API[Backend API]

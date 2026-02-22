@@ -33,7 +33,7 @@ export default function Layout() {
       }
     >
       <div className="flex items-center justify-between p-4 md:block">
-        <h1 className="text-lg font-semibold text-gray-900 dark:text-white">ClinAI</h1>
+        <h1 className="text-lg font-semibold text-gray-900 dark:text-white">MentalCarePilot</h1>
         {mobile && (
           <button
             type="button"
@@ -76,7 +76,7 @@ export default function Layout() {
         />
       )}
       <div className="flex flex-1 flex-col min-w-0">
-        <header className="sticky top-0 z-30 flex min-h-touch items-center border-b border-gray-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-900 md:hidden">
+        <header className="sticky top-0 z-30 flex min-h-touch items-center border-b border-gray-200 bg-white px-4 pt-[env(safe-area-inset-top)] dark:border-gray-700 dark:bg-gray-900 md:hidden">
           <button
             type="button"
             onClick={() => setNavOpen(true)}
@@ -85,9 +85,9 @@ export default function Layout() {
           >
             ☰
           </button>
-          <span className="ml-2 text-sm font-medium text-gray-900 dark:text-white">ClinAI</span>
+          <span className="ml-2 text-sm font-medium text-gray-900 dark:text-white">MentalCarePilot</span>
         </header>
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto p-4 md:p-6">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:p-6">
           <Outlet />
         </main>
       </div>

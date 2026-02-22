@@ -692,7 +692,7 @@ export default function ChatPage() {
         const a = document.createElement("a");
         a.href = url;
         const date = new Date().toISOString().slice(0, 10);
-        a.download = `clinai-chat-${id.slice(0, 8)}-${date}.${format}`;
+        a.download = `mentalcarepilot-chat-${id.slice(0, 8)}-${date}.${format}`;
         a.click();
         URL.revokeObjectURL(url);
       } catch (err) {
@@ -1055,8 +1055,8 @@ export default function ChatPage() {
                 )}
               </div>
 
-              {/* Sticky input area */}
-              <div className="shrink-0 border-t border-gray-200 p-4 dark:border-gray-600">
+              {/* Sticky input area — safe-area so keyboard/notch don't hide input */}
+              <div className="shrink-0 border-t border-gray-200 p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] dark:border-gray-600">
                 {!isFinalized && !anonymizationEnabled && (
                   <p
                     className="mb-2 text-xs text-amber-600 dark:text-amber-400"

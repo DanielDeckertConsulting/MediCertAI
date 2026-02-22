@@ -1,4 +1,4 @@
-# ClinAI MVP — Infrastructure Simplicity Justification
+# MentalCarePilot MVP — Infrastructure Simplicity Justification
 
 **Version:** 0.1  
 **Date:** 2025-02-19

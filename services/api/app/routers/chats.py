@@ -826,8 +826,8 @@ def _build_pdf(
 
     story = []
 
-    # Header: ClinAI Export, title, export date
-    story.append(Paragraph("ClinAI Export", header_style))
+    # Header: MentalCarePilot Export, title, export date
+    story.append(Paragraph("MentalCarePilot Export", header_style))
     story.append(Paragraph(chat_title or "Chat", body_style))
     export_ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     story.append(Paragraph(f"Export: {export_ts}", header_style))
@@ -945,7 +945,7 @@ async def export_chat(
         # Build and return response
         safe_title = (chat_title or str(chat_id))[:80].replace("/", "-")
         export_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        filename_base = f"clinai-chat-{safe_title}-{export_date}".replace(" ", "-")
+        filename_base = f"mentalcarepilot-chat-{safe_title}-{export_date}".replace(" ", "-")
 
         if fmt == "txt":
             content = _build_txt(chat_title or "Chat", messages)

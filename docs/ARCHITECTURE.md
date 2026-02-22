@@ -1,4 +1,4 @@
-# ClinAI MVP 0.1 — Target Architecture
+# MentalCarePilot MVP 0.1 — Target Architecture
 
 **Version:** 0.1  
 **Date:** 2025-02-19  
@@ -120,7 +120,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    subgraph RG["Resource Group: clinai-mvp-rg"]
+    subgraph RG["Resource Group: mental-care-pilot-rg"]
         subgraph App["Compute"]
             ASE[App Service Plan]
             BE[Backend App Service]
@@ -167,7 +167,8 @@ flowchart LR
 
 ### 5.1 Frontend
 
-- Auth: Redirect to B2C, handle callback, store tokens
+- **Delivery:** Same SPA is served as browser app, installable PWA (manifest + service worker), and native iOS/Android via Capacitor. Build output: `apps/web/dist`. See [mobile.md](mobile.md) and [mobile-delivery-pwa-capacitor.mmd](diagrams/flows/mobile-delivery-pwa-capacitor.mmd).
+- Auth: Redirect to B2C, handle callback at `/auth/callback` (web or `capacitor://localhost/auth/callback` in native). Redirect URI from `VITE_AUTH_REDIRECT_URI` or runtime (Capacitor vs web). See [seq-auth-callback.mmd](diagrams/flows/seq-auth-callback.mmd).
 - EU Processing Notice: Visible banner on Chat and Login ("Alle Daten werden innerhalb der EU verarbeitet."); dismissible (localStorage); /privacy page for Datenschutz
 - Chat: Send messages, consume SSE stream; assist mode dropdown (custom, mobile-readable); Voice dictation (microphone icon, Web Speech API; no audio stored); Export (TXT/PDF) per conversation; Lock/Finalize action for medico-legal documentation (freezes chat; export remains available)
 - KI-Antworten: Process markdown via /ai-responses; render structured blocks; Timeline with expandable preview
@@ -248,6 +249,7 @@ See `docs/diagrams/mobile-responsive-layout.md`.
 - Case Summary (Cross-Conversation): `docs/diagrams/case-summary-flow.md`
 - Voice-to-Text Dictation: `docs/diagrams/voice-dictation-flow.md`
 - Structured Session Documentation (EPIC 14): `docs/diagrams/structured-session-documentation-flow.md`
+- Mobile delivery (PWA + Capacitor): `docs/diagrams/flows/mobile-delivery-pwa-capacitor.mmd`, `docs/diagrams/flows/seq-auth-callback.mmd`
 
 ## 10. AI Response Rendering Engine (EPIC 13)
 
@@ -281,6 +283,12 @@ See `INFRASTRUCTURE_DECISION.md` for concrete service choices and tradeoffs.
 ---
 
 ## 13. What changed
+
+### 2026-02-21 (Mobile App Packaging — PWA + Capacitor)
+
+- **PWA:** Same SPA is installable (manifest, service worker with autoUpdate). App shell/assets cached; API and streaming endpoints not cached so chat streaming is unchanged.
+- **Capacitor:** Native iOS and Android apps wrap `apps/web/dist`; scripts: `pnpm run cap:sync`, `android`, `ios`. See [mobile.md](mobile.md).
+- **Auth redirects:** Callback route `/auth/callback`; redirect URI config via `VITE_AUTH_REDIRECT_URI` or runtime (Capacitor: `capacitor://localhost/auth/callback`). B2C app registration must allow these URIs. Flows: [mobile-delivery-pwa-capacitor.mmd](diagrams/flows/mobile-delivery-pwa-capacitor.mmd), [seq-auth-callback.mmd](diagrams/flows/seq-auth-callback.mmd).
 
 ### 2026-02-20 (EPIC 14 — Structured Clinical Documentation)
 

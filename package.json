@@ -1,18 +1,29 @@
 {
-  "name": "clinai-mvp",
+  "name": "mental-care-pilot",
   "private": true,
   "scripts": {
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api dev",
+    "dev": "pnpm --filter web dev",
     "build": "pnpm --filter web build",
+    "pwa:preview": "pnpm run build && pnpm --filter web run preview",
+    "cap:sync": "pnpm run build && npx cap sync",
+    "android": "npx cap open android",
+    "ios": "npx cap open ios",
     "test": "pnpm --filter web test",
     "lint": "pnpm --filter web lint"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.1.0",
+    "@capacitor/core": "^8.1.0",
     "prettier": "^3.2.5"
   },
   "packageManager": "pnpm@9.14.2",
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.1.0",
+    "@capacitor/ios": "^8.1.0"
   }
 }

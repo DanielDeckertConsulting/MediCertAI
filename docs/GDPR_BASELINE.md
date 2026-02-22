@@ -1,4 +1,4 @@
-# ClinAI — GDPR Baseline (Placeholder)
+# MentalCarePilot — GDPR Baseline (Placeholder)
 
 **Status:** Documented; implementation in feature phases
 

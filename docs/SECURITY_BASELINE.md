@@ -1,4 +1,4 @@
-# ClinAI MVP — Security Baseline
+# MentalCarePilot MVP — Security Baseline
 
 **Version:** 0.1  
 **Date:** 2025-02-19
@@ -47,7 +47,7 @@
 
 ## 4. CORS
 
-- Allow only frontend origin (e.g. `https://app.clinai.example`)
+- Allow only frontend origin (e.g. `https://app.mentalcarepilot.example`)
 - No `*` in production
 - Credentials: `true` for cookie/session if used; JWT typically in header
 

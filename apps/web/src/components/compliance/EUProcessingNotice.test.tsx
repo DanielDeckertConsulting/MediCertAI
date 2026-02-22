@@ -83,7 +83,7 @@ describe("EUProcessingNotice", () => {
     if (dismissBtn) fireEvent.click(dismissBtn);
 
     expect(localStorageMock.setItem).toHaveBeenCalledWith(
-      "clinai.eu_processing_notice.dismissed.v1",
+      "mentalcarepilot.eu_processing_notice.dismissed.v1",
       "true"
     );
   });

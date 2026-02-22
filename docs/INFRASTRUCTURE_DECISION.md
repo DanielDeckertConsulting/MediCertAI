@@ -1,4 +1,4 @@
-# ClinAI MVP — Infrastructure Decision
+# MentalCarePilot MVP — Infrastructure Decision
 
 **Version:** 0.1  
 **Date:** 2025-02-19  

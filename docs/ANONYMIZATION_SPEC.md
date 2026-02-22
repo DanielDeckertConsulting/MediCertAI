@@ -1,4 +1,4 @@
-# ClinAI MVP — Anonymization Specification (V1)
+# MentalCarePilot MVP — Anonymization Specification (V1)
 
 **Status:** Resolved  
 **Date:** 2025-02-19

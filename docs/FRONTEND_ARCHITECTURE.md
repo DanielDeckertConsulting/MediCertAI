@@ -1,4 +1,4 @@
-# ClinAI MVP — Frontend Architecture
+# MentalCarePilot MVP — Frontend Architecture
 
 **Version:** 0.1  
 **Date:** 2025-02-19

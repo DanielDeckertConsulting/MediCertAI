@@ -1,4 +1,4 @@
-# ClinAI MVP — LLM Security & GDPR Design
+# MentalCarePilot MVP — LLM Security & GDPR Design
 
 **Version:** 0.1  
 **Date:** 2025-02-19

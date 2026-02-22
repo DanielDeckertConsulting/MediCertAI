@@ -133,6 +133,55 @@ Output marker: PM_ACCEPTED
 8a) Run #diagram_diff (base vs current branch) → CHANGE_SIGNALS, DIAGRAM_IMPACT_TABLE, PATCH_PLAN.  
 8b) Run #update_diagrams_after_feature using PATCH_PLAN as input → update diagrams, architecture.md/events.md, validation. Output: DIAGRAMS_UPDATED.
 
+**STAGE X — RELEASE READINESS REPORT (CEO-ready)**  
+Create a concise, executive-friendly one-pager that confirms release readiness and communicates risk clearly.
+
+**Inputs**
+- Read `.cursor/scratchpad.md` markers:
+  - FEATURE_NAME / FEATURE_SUMMARY (from PM)
+  - MODE_SELECTED, HEALTHCARE_MODE
+  - GOLDEN_PATH_IMPACT
+  - COMPLEXITY, COMPLEXITY_SCORE, COMPLEXITY_REASON
+  - REVIEW_MODE, REVIEW_RESULT, REVIEW_APPROVED
+  - TESTS_GREEN (or test output summary)
+  - E2E_DECISION + result (if available)
+  - SECURITY_OK / PRIVACY_OK / DOCS_OK (if present)
+  - GDPR_SCAN result (if present)
+
+**Output**
+- Create (or overwrite) a file: `docs/release_readiness/latest.md`
+- Also append a short “TL;DR” block into `.cursor/scratchpad.md` under header `RELEASE_READINESS_TLDR`.
+
+**Format of docs/release_readiness/latest.md**
+# Release Readiness Report — <FEATURE_NAME>
+Date: <YYYY-MM-DD HH:mm>
+
+## What shipped (non-technical)
+- 3–6 bullets describing user-visible value.
+
+## Readiness status
+- ✅ Ready / ⚠️ Needs follow-up (explain)
+
+## Quality gates
+- Unit/Integration: PASS/FAIL (short)
+- E2E: NONE / SMOKE PASS / FULL PASS / FAIL
+- Review: QUICK/DEEP + APPROVED/REQUEST_CHANGES
+- Architecture: Event-Log-first respected (YES/NO)
+- Projections rebuildable/idempotent (YES/NO)
+- GDPR/Privacy (if applicable): PASS/FAIL
+
+## Risk & mitigation (Top 3)
+- Risk: …
+  Mitigation: …
+
+## Rollout suggestion
+- Suggested rollout: internal first / limited users / full rollout
+- Monitoring notes (what to watch)
+
+**Definition of Done**
+- File exists at `docs/release_readiness/latest.md`
+- TL;DR appended to scratchpad
+
 End with: FEATURE_SHIPPED
 
 ========================================================
@@ -275,6 +324,55 @@ Output marker: PM_ACCEPTED
 **STAGE 12 — Update Diagrams After Feature**  
 12a) Run #diagram_diff (base vs current branch) → CHANGE_SIGNALS, DIAGRAM_IMPACT_TABLE, PATCH_PLAN.  
 12b) Run #update_diagrams_after_feature using PATCH_PLAN as input → update diagrams, architecture.md/events.md, validation. Output: DIAGRAMS_UPDATED.
+
+**STAGE X — RELEASE READINESS REPORT (CEO-ready)**  
+Create a concise, executive-friendly one-pager that confirms release readiness and communicates risk clearly.
+
+**Inputs**
+- Read `.cursor/scratchpad.md` markers:
+  - FEATURE_NAME / FEATURE_SUMMARY (from PM)
+  - MODE_SELECTED, HEALTHCARE_MODE
+  - GOLDEN_PATH_IMPACT
+  - COMPLEXITY, COMPLEXITY_SCORE, COMPLEXITY_REASON
+  - REVIEW_MODE, REVIEW_RESULT, REVIEW_APPROVED
+  - TESTS_GREEN (or test output summary)
+  - E2E_DECISION + result (if available)
+  - SECURITY_OK / PRIVACY_OK / DOCS_OK (if present)
+  - GDPR_SCAN result (if present)
+
+**Output**
+- Create (or overwrite) a file: `docs/release_readiness/latest.md`
+- Also append a short “TL;DR” block into `.cursor/scratchpad.md` under header `RELEASE_READINESS_TLDR`.
+
+**Format of docs/release_readiness/latest.md**
+# Release Readiness Report — <FEATURE_NAME>
+Date: <YYYY-MM-DD HH:mm>
+
+## What shipped (non-technical)
+- 3–6 bullets describing user-visible value.
+
+## Readiness status
+- ✅ Ready / ⚠️ Needs follow-up (explain)
+
+## Quality gates
+- Unit/Integration: PASS/FAIL (short)
+- E2E: NONE / SMOKE PASS / FULL PASS / FAIL
+- Review: QUICK/DEEP + APPROVED/REQUEST_CHANGES
+- Architecture: Event-Log-first respected (YES/NO)
+- Projections rebuildable/idempotent (YES/NO)
+- GDPR/Privacy (if applicable): PASS/FAIL
+
+## Risk & mitigation (Top 3)
+- Risk: …
+  Mitigation: …
+
+## Rollout suggestion
+- Suggested rollout: internal first / limited users / full rollout
+- Monitoring notes (what to watch)
+
+**Definition of Done**
+- File exists at `docs/release_readiness/latest.md`
+- TL;DR appended to scratchpad
 
 End with: HEALTHCARE_FEATURE_SHIPPED
 

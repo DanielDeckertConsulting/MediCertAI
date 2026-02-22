@@ -1,1 +1,1 @@
-# ClinAI API
+# MentalCarePilot API

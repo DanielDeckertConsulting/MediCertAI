@@ -1,4 +1,4 @@
-# ClinAI MVP — Tech Stack Recommendation
+# MentalCarePilot MVP — Tech Stack Recommendation
 
 **Version:** 0.1  
 **Date:** 2025-02-19
@@ -21,7 +21,7 @@
 
 ```bash
 # Example
-npm create vite@latest clinai-ui -- --template react-ts
+npm create vite@latest mental-care-pilot-ui -- --template react-ts
 ```
 
 ---
