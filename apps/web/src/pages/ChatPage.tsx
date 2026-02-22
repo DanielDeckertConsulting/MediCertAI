@@ -1,5 +1,5 @@
 /** Chat — streaming interface with assist modes and anonymization. Mobile-first: cards on small screens, sidebar on md+. */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -265,147 +265,199 @@ const ASSIST_DEFAULTS: PromptSummary[] = [
   { key: "CASE_REFLECTION", display_name: "Case Reflection", version: 1 },
 ];
 
-/** Chat list as cards for mobile, compact list for desktop. */
-function ChatList({
-  chats,
-  chatId,
-  titleFilter,
-  onFilterChange,
+const DESKTOP_FOLDER_COLLAPSE_STORAGE_KEY = "chat-folder-collapsed-v1";
+
+function folderCollapseStorageKey() {
+  if (typeof window === "undefined") return DESKTOP_FOLDER_COLLAPSE_STORAGE_KEY;
+  const tenant = window.localStorage.getItem("tenant_id") ?? "tenant-default";
+  const user = window.localStorage.getItem("user_id") ?? "user-default";
+  return `${DESKTOP_FOLDER_COLLAPSE_STORAGE_KEY}:${tenant}:${user}`;
+}
+
+function readFolderCollapseState(storageKey: string): Record<string, boolean> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return Object.entries(parsed).reduce<Record<string, boolean>>((acc, [key, value]) => {
+      if (typeof value === "boolean") acc[key] = value;
+      return acc;
+    }, {});
+  } catch {
+    return {};
+  }
+}
+
+function formatChatUpdatedAt(value: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function ChatActionsMenu({
+  chat,
   folders,
-  selectedFolderId,
-  onFolderSelect,
-  onCreateChat,
-  onSelectChat,
-  onRename,
+  onStartRename,
   onFavorite,
+  onMove,
   onExport,
   onDelete,
-  onGenerateCaseSummary,
-  editingId,
-  editingTitle,
-  onEditingChange,
-  isLoading,
   exportLoading,
-  caseSummaryLoading,
 }: {
-  chats: ChatSummary[];
-  chatId: string | null;
-  titleFilter: string;
-  onFilterChange: (v: string) => void;
+  chat: ChatSummary;
   folders: FolderOut[];
-  selectedFolderId: string | null;
-  onFolderSelect: (id: string | null) => void;
-  onCreateChat: () => void;
-  onSelectChat: (id: string) => void;
-  onRename: (id: string) => void;
+  onStartRename: () => void;
   onFavorite: (c: ChatSummary, e: React.MouseEvent) => void;
+  onMove: (id: string, folderId: string | null, e: React.MouseEvent) => void;
   onExport: (id: string, format: ExportFormat, e: React.MouseEvent) => void;
   onDelete: (id: string, e: React.MouseEvent) => void;
-  onGenerateCaseSummary?: () => void;
-  editingId: string | null;
-  editingTitle: string;
-  onEditingChange: (id: string | null, title: string) => void;
-  isLoading?: boolean;
   exportLoading?: boolean;
-  caseSummaryLoading?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const isFinalized = chat.status === "finalized";
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [open]);
+
   return (
-    <div className="flex flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-      <div className="shrink-0 border-b border-gray-200 p-2 dark:border-gray-600">
-        <p className="mb-1 px-2 text-xs font-medium text-gray-500 dark:text-gray-400">Ordner</p>
-        <div className="flex flex-wrap gap-1 overflow-y-auto">
-            <button
-              type="button"
-              onClick={() => onFolderSelect(null)}
-              className={`min-h-touch rounded px-2.5 py-1.5 text-left text-sm transition-colors ${
-                selectedFolderId === null ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900" : "hover:bg-gray-100 dark:hover:bg-gray-700"
-              }`}
-            >
-              Alle
-            </button>
-            <button
-              type="button"
-              onClick={() => onFolderSelect("unfiled")}
-className={`min-h-touch rounded px-2.5 py-1.5 text-left text-sm transition-colors ${
-              selectedFolderId === "unfiled" ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900" : "hover:bg-gray-100 dark:hover:bg-gray-700"
-            }`}
-            >
-              Nicht zugeordnet
-            </button>
-            {folders.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => onFolderSelect(f.id)}
-                className={`min-h-touch rounded px-2.5 py-1.5 text-left text-sm transition-colors ${
-                  selectedFolderId === f.id ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900" : "hover:bg-gray-100 dark:hover:bg-gray-700"
-                }`}
-              >
-                {f.name}
-              </button>
-            ))}
-        </div>
-        {selectedFolderId &&
-          selectedFolderId !== "unfiled" &&
-          chats.length > 0 &&
-          onGenerateCaseSummary && (
-          <div className="mt-2 px-2">
-            <button
-              type="button"
-              onClick={onGenerateCaseSummary}
-              disabled={caseSummaryLoading}
-              className="min-h-touch w-full rounded border border-primary-500 bg-transparent px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:border-primary-400 dark:text-primary-400 dark:hover:bg-primary-900/30 disabled:opacity-50"
-            >
-              {caseSummaryLoading ? "Wird erstellt…" : "Fallzusammenfassung generieren"}
-            </button>
-          </div>
-        )}
-      </div>
-      <div className="border-b border-gray-200 p-3 dark:border-gray-600">
-        <button
-          type="button"
-          onClick={onCreateChat}
-          className="min-h-touch min-w-touch w-full rounded-lg bg-primary-500 px-4 py-3 text-sm font-medium text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((prev) => !prev);
+        }}
+        className="min-h-touch min-w-touch rounded p-2 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-600"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Aktionen für ${chat.title}`}
+      >
+        ⋯
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-white"
         >
-          + Neuer Chat
-        </button>
-        <input
-          type="search"
-          placeholder="Chats durchsuchen..."
-          value={titleFilter}
-          onChange={(e) => onFilterChange(e.target.value)}
-          className="mt-2 min-h-[44px] w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-          aria-label="Chat-Titel durchsuchen"
-        />
-      </div>
-      <div className="flex-1 overflow-y-auto p-2 min-w-0">
-        {isLoading ? (
-          <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">Laden...</p>
-        ) : chats.length === 0 ? (
-          <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-            Keine Chats. Erstellen Sie einen neuen.
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {chats.map((c) => (
-              <ChatListItem
-                key={c.id}
-                chat={c}
-                isSelected={chatId === c.id}
-                isEditing={editingId === c.id}
-                editingTitle={editingTitle}
-                onSelect={() => onSelectChat(c.id)}
-                onRename={() => onRename(c.id)}
-                onEditingChange={onEditingChange}
-                onFavorite={onFavorite}
-                onExport={onExport}
-                onDelete={onDelete}
-                exportLoading={exportLoading ?? false}
-              />
-            ))}
-          </ul>
-        )}
-      </div>
+          {!isFinalized ? (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStartRename();
+                  setOpen(false);
+                }}
+                className="flex min-h-[44px] w-full items-center px-4 py-3 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                Umbenennen
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(e) => {
+                  onFavorite(chat, e);
+                  setOpen(false);
+                }}
+                className="flex min-h-[44px] w-full items-center px-4 py-3 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                {chat.is_favorite ? "Favorit entfernen" : "Als Favorit markieren"}
+              </button>
+              <div className="border-t border-gray-200 px-4 py-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:border-gray-600 dark:text-gray-400">
+                In Ordner verschieben
+              </div>
+              <div className="max-h-40 overflow-y-auto pb-1">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={(e) => {
+                    onMove(chat.id, null, e);
+                    setOpen(false);
+                  }}
+                  className={`flex min-h-[44px] w-full items-center px-4 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                    !chat.folder_id ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900" : ""
+                  }`}
+                >
+                  Nicht zugeordnet
+                </button>
+                {folders.map((folder) => (
+                  <button
+                    key={folder.id}
+                    type="button"
+                    role="menuitem"
+                    onClick={(e) => {
+                      onMove(chat.id, folder.id, e);
+                      setOpen(false);
+                    }}
+                    className={`flex min-h-[44px] w-full items-center px-4 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                      chat.folder_id === folder.id
+                        ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900"
+                        : ""
+                    }`}
+                  >
+                    {folder.name}
+                  </button>
+                ))}
+              </div>
+              <div className="border-t border-gray-200 dark:border-gray-600" />
+            </>
+          ) : (
+            <p className="border-b border-gray-200 px-4 py-2 text-xs text-amber-700 dark:border-gray-600 dark:text-amber-300">
+              Dieser Chat ist abgeschlossen. Bearbeiten und Löschen sind deaktiviert.
+            </p>
+          )}
+
+          <button
+            type="button"
+            role="menuitem"
+            onClick={(e) => {
+              onExport(chat.id, "txt", e);
+              setOpen(false);
+            }}
+            disabled={exportLoading}
+            className="flex min-h-[44px] w-full items-center px-4 py-3 text-left text-sm transition-colors hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-gray-700"
+          >
+            Export als TXT
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={(e) => {
+              onExport(chat.id, "pdf", e);
+              setOpen(false);
+            }}
+            disabled={exportLoading}
+            className="flex min-h-[44px] w-full items-center px-4 py-3 text-left text-sm transition-colors hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-gray-700"
+          >
+            Export als PDF
+          </button>
+          {!isFinalized && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => {
+                e.stopPropagation();
+                const confirmed = window.confirm("Chat wirklich löschen?");
+                if (!confirmed) return;
+                onDelete(chat.id, e);
+                setOpen(false);
+              }}
+              className="flex min-h-[44px] w-full items-center border-t border-gray-200 px-4 py-3 text-left text-sm text-red-600 transition-colors hover:bg-red-50 dark:border-gray-600 dark:text-red-400 dark:hover:bg-red-900/30"
+            >
+              Löschen
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -415,29 +467,35 @@ function ChatListItem({
   isSelected,
   isEditing,
   editingTitle,
+  folders,
   onSelect,
   onRename,
+  onMove,
   onEditingChange,
   onFavorite,
   onExport,
   onDelete,
   exportLoading,
+  variant = "mobile",
 }: {
   chat: ChatSummary;
   isSelected: boolean;
   isEditing: boolean;
   editingTitle: string;
+  folders: FolderOut[];
   onSelect: () => void;
   onRename: () => void;
+  onMove: (id: string, folderId: string | null, e: React.MouseEvent) => void;
   onEditingChange: (id: string | null, title: string) => void;
   onFavorite: (c: ChatSummary, e: React.MouseEvent) => void;
   onExport: (id: string, format: ExportFormat, e: React.MouseEvent) => void;
   onDelete: (id: string, e: React.MouseEvent) => void;
   exportLoading?: boolean;
+  variant?: "mobile" | "desktop";
 }) {
   return (
     <li
-      className={`flex min-h-touch items-center gap-2 rounded-lg px-3 py-2 md:px-2 md:py-2 ${
+      className={`flex min-h-touch items-center gap-2 rounded-lg px-3 py-2 ${
         isSelected ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900" : "hover:bg-gray-100 dark:hover:bg-gray-700"
       }`}
     >
@@ -455,6 +513,37 @@ function ChatListItem({
           autoFocus
           aria-label="Chat umbenennen"
         />
+      ) : variant === "desktop" ? (
+        <>
+          <button
+            type="button"
+            onClick={onSelect}
+            className="min-h-touch min-w-0 flex-1 text-left"
+          >
+            <p className="truncate text-sm">{chat.title}</p>
+            {chat.updated_at && (
+              <p className="truncate text-xs text-gray-500 dark:text-gray-400">{formatChatUpdatedAt(chat.updated_at)}</p>
+            )}
+          </button>
+          {chat.status === "finalized" && (
+            <span
+              className="shrink-0 rounded px-2 py-1 text-xs font-medium text-amber-700 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300"
+              title="Abgeschlossen – keine Änderungen möglich"
+            >
+              🔒
+            </span>
+          )}
+          <ChatActionsMenu
+            chat={chat}
+            folders={folders}
+            onStartRename={() => onEditingChange(chat.id, chat.title)}
+            onFavorite={onFavorite}
+            onMove={onMove}
+            onExport={onExport}
+            onDelete={onDelete}
+            exportLoading={exportLoading}
+          />
+        </>
       ) : (
         <>
           <button
@@ -509,6 +598,435 @@ function ChatListItem({
         </>
       )}
     </li>
+  );
+}
+
+function FolderGroup({
+  folder,
+  chats,
+  isExpanded,
+  isActive,
+  chatId,
+  editingId,
+  editingTitle,
+  folders,
+  exportLoading,
+  onToggle,
+  onSelectFolder,
+  onSelectChat,
+  onRename,
+  onMove,
+  onEditingChange,
+  onFavorite,
+  onExport,
+  onDelete,
+}: {
+  folder: FolderOut;
+  chats: ChatSummary[];
+  isExpanded: boolean;
+  isActive: boolean;
+  chatId: string | null;
+  editingId: string | null;
+  editingTitle: string;
+  folders: FolderOut[];
+  exportLoading?: boolean;
+  onToggle: () => void;
+  onSelectFolder: () => void;
+  onSelectChat: (id: string) => void;
+  onRename: (id: string) => void;
+  onMove: (id: string, folderId: string | null, e: React.MouseEvent) => void;
+  onEditingChange: (id: string | null, title: string) => void;
+  onFavorite: (c: ChatSummary, e: React.MouseEvent) => void;
+  onExport: (id: string, format: ExportFormat, e: React.MouseEvent) => void;
+  onDelete: (id: string, e: React.MouseEvent) => void;
+}) {
+  const hasChats = chats.length > 0;
+
+  return (
+    <section
+      className="rounded border border-gray-200 dark:border-gray-600"
+      aria-label={`Ordnergruppe ${folder.name}`}
+    >
+      <div className={`flex items-center justify-between gap-2 px-2 py-1.5 ${!hasChats ? "opacity-60" : ""}`}>
+        <button
+          type="button"
+          onClick={onSelectFolder}
+          className={`min-h-touch min-w-0 flex flex-1 items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors ${
+            isActive ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900" : "hover:bg-gray-100 dark:hover:bg-gray-700"
+          }`}
+          title={folder.name}
+        >
+          <span className="truncate">{folder.name}</span>
+          <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+            {chats.length}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={onToggle}
+          disabled={!hasChats}
+          className="min-h-touch min-w-touch rounded p-2 text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-gray-700"
+          aria-label={hasChats ? `Ordner ${folder.name} ${isExpanded ? "einklappen" : "ausklappen"}` : `Ordner ${folder.name} ist leer`}
+          aria-expanded={hasChats ? isExpanded : undefined}
+        >
+          {hasChats ? (isExpanded ? "▾" : "▸") : "•"}
+        </button>
+      </div>
+      {hasChats && isExpanded && (
+        <ul className="space-y-1 border-t border-gray-200 p-1 dark:border-gray-600">
+          {chats.map((chat) => (
+            <ChatListItem
+              key={chat.id}
+              chat={chat}
+              isSelected={chatId === chat.id}
+              isEditing={editingId === chat.id}
+              editingTitle={editingTitle}
+              folders={folders}
+              onSelect={() => onSelectChat(chat.id)}
+              onRename={() => onRename(chat.id)}
+              onMove={onMove}
+              onEditingChange={onEditingChange}
+              onFavorite={onFavorite}
+              onExport={onExport}
+              onDelete={onDelete}
+              exportLoading={exportLoading ?? false}
+              variant="desktop"
+            />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** Chat list as cards for mobile, calm grouped list for desktop. */
+function ChatList({
+  chats,
+  chatId,
+  titleFilter,
+  onFilterChange,
+  folders,
+  selectedFolderId,
+  onFolderSelect,
+  onCreateChat,
+  onSelectChat,
+  onRename,
+  onMove,
+  onFavorite,
+  onExport,
+  onDelete,
+  onGenerateCaseSummary,
+  editingId,
+  editingTitle,
+  onEditingChange,
+  isLoading,
+  exportLoading,
+  caseSummaryLoading,
+}: {
+  chats: ChatSummary[];
+  chatId: string | null;
+  titleFilter: string;
+  onFilterChange: (v: string) => void;
+  folders: FolderOut[];
+  selectedFolderId: string | null;
+  onFolderSelect: (id: string | null) => void;
+  onCreateChat: () => void;
+  onSelectChat: (id: string) => void;
+  onRename: (id: string) => void;
+  onMove: (id: string, folderId: string | null, e: React.MouseEvent) => void;
+  onFavorite: (c: ChatSummary, e: React.MouseEvent) => void;
+  onExport: (id: string, format: ExportFormat, e: React.MouseEvent) => void;
+  onDelete: (id: string, e: React.MouseEvent) => void;
+  onGenerateCaseSummary?: () => void;
+  editingId: string | null;
+  editingTitle: string;
+  onEditingChange: (id: string | null, title: string) => void;
+  isLoading?: boolean;
+  exportLoading?: boolean;
+  caseSummaryLoading?: boolean;
+}) {
+  const folderChats = useMemo(() => {
+    const grouped: Record<string, ChatSummary[]> = {};
+    for (const folder of folders) grouped[folder.id] = [];
+    for (const chat of chats) {
+      if (chat.folder_id && grouped[chat.folder_id]) grouped[chat.folder_id]!.push(chat);
+    }
+    return grouped;
+  }, [chats, folders]);
+
+  const unfiledChats = useMemo(() => chats.filter((chat) => !chat.folder_id), [chats]);
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const storageKey = folderCollapseStorageKey();
+    const persisted = readFolderCollapseState(storageKey);
+    setExpandedFolders((prev) => {
+      const next: Record<string, boolean> = {};
+      for (const folder of folders) {
+        const hasChats = (folderChats[folder.id]?.length ?? 0) > 0;
+        const prevValue = prev[folder.id];
+        const persistedValue = persisted[folder.id];
+        next[folder.id] =
+          typeof prevValue === "boolean"
+            ? prevValue
+            : typeof persistedValue === "boolean"
+              ? persistedValue
+              : hasChats;
+      }
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      const unchanged =
+        prevKeys.length === nextKeys.length &&
+        nextKeys.every((key) => prev[key] === next[key]);
+      return unchanged ? prev : next;
+    });
+  }, [folderChats, folders]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (Object.keys(expandedFolders).length === 0) return;
+    window.localStorage.setItem(folderCollapseStorageKey(), JSON.stringify(expandedFolders));
+  }, [expandedFolders]);
+
+  const toggleFolder = useCallback((folderId: string) => {
+    setExpandedFolders((prev) => ({ ...prev, [folderId]: !prev[folderId] }));
+  }, []);
+
+  return (
+    <>
+      {/* Mobile layout unchanged */}
+      <div className="flex flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 md:hidden">
+        <div className="shrink-0 border-b border-gray-200 p-2 dark:border-gray-600">
+          <p className="mb-1 px-2 text-xs font-medium text-gray-500 dark:text-gray-400">Ordner</p>
+          <div className="flex flex-wrap gap-1 overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => onFolderSelect(null)}
+              className={`min-h-touch rounded px-2.5 py-1.5 text-left text-sm transition-colors ${
+                selectedFolderId === null
+                  ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900"
+                  : "hover:bg-gray-100 dark:hover:bg-gray-700"
+              }`}
+            >
+              Alle
+            </button>
+            <button
+              type="button"
+              onClick={() => onFolderSelect("unfiled")}
+              className={`min-h-touch rounded px-2.5 py-1.5 text-left text-sm transition-colors ${
+                selectedFolderId === "unfiled"
+                  ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900"
+                  : "hover:bg-gray-100 dark:hover:bg-gray-700"
+              }`}
+            >
+              Nicht zugeordnet
+            </button>
+            {folders.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => onFolderSelect(f.id)}
+                className={`min-h-touch rounded px-2.5 py-1.5 text-left text-sm transition-colors ${
+                  selectedFolderId === f.id
+                    ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900"
+                    : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                }`}
+              >
+                {f.name}
+              </button>
+            ))}
+          </div>
+          {selectedFolderId &&
+            selectedFolderId !== "unfiled" &&
+            chats.length > 0 &&
+            onGenerateCaseSummary && (
+              <div className="mt-2 px-2">
+                <button
+                  type="button"
+                  onClick={onGenerateCaseSummary}
+                  disabled={caseSummaryLoading}
+                  className="min-h-touch w-full rounded border border-primary-500 bg-transparent px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:border-primary-400 dark:text-primary-400 dark:hover:bg-primary-900/30 disabled:opacity-50"
+                >
+                  {caseSummaryLoading ? "Wird erstellt…" : "Fallzusammenfassung generieren"}
+                </button>
+              </div>
+            )}
+        </div>
+        <div className="border-b border-gray-200 p-3 dark:border-gray-600">
+          <button
+            type="button"
+            onClick={onCreateChat}
+            className="min-h-touch min-w-touch w-full rounded-lg bg-primary-500 px-4 py-3 text-sm font-medium text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
+          >
+            + Neuer Chat
+          </button>
+          <input
+            type="search"
+            placeholder="Chats durchsuchen..."
+            value={titleFilter}
+            onChange={(e) => onFilterChange(e.target.value)}
+            className="mt-2 min-h-[44px] w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            aria-label="Chat-Titel durchsuchen"
+          />
+        </div>
+        <div className="min-w-0 flex-1 overflow-y-auto p-2">
+          {isLoading ? (
+            <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">Laden...</p>
+          ) : chats.length === 0 ? (
+            <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+              Keine Chats. Erstellen Sie einen neuen.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {chats.map((chat) => (
+                <ChatListItem
+                  key={chat.id}
+                  chat={chat}
+                  isSelected={chatId === chat.id}
+                  isEditing={editingId === chat.id}
+                  editingTitle={editingTitle}
+                  folders={folders}
+                  onSelect={() => onSelectChat(chat.id)}
+                  onRename={() => onRename(chat.id)}
+                  onMove={onMove}
+                  onEditingChange={onEditingChange}
+                  onFavorite={onFavorite}
+                  onExport={onExport}
+                  onDelete={onDelete}
+                  exportLoading={exportLoading ?? false}
+                  variant="mobile"
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Desktop layout: collapsible folder groups + own scroll area for old chats */}
+      <div className="hidden h-full min-h-0 flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 md:flex">
+        <div className="shrink-0 border-b border-gray-200 p-2 dark:border-gray-600">
+          <p className="mb-1 px-2 text-xs font-medium text-gray-500 dark:text-gray-400">Ordner</p>
+          <div className="flex flex-wrap gap-1">
+            <button
+              type="button"
+              onClick={() => onFolderSelect(null)}
+              className={`min-h-touch rounded px-2.5 py-1.5 text-left text-sm transition-colors ${
+                selectedFolderId === null
+                  ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900"
+                  : "hover:bg-gray-100 dark:hover:bg-gray-700"
+              }`}
+            >
+              Alle
+            </button>
+            <button
+              type="button"
+              onClick={() => onFolderSelect("unfiled")}
+              className={`min-h-touch rounded px-2.5 py-1.5 text-left text-sm transition-colors ${
+                selectedFolderId === "unfiled"
+                  ? "bg-primary-100 text-primary-800 dark:bg-primary-100 dark:text-gray-900"
+                  : "hover:bg-gray-100 dark:hover:bg-gray-700"
+              }`}
+            >
+              Nicht zugeordnet
+            </button>
+          </div>
+        </div>
+
+        <div className="shrink-0 space-y-2 border-b border-gray-200 p-2 dark:border-gray-600">
+          {folders.length === 0 ? (
+            <p className="px-2 py-2 text-xs text-gray-500 dark:text-gray-400">Keine Ordner vorhanden.</p>
+          ) : (
+            folders.map((folder) => (
+              <FolderGroup
+                key={folder.id}
+                folder={folder}
+                chats={folderChats[folder.id] ?? []}
+                isExpanded={expandedFolders[folder.id] ?? false}
+                isActive={selectedFolderId === folder.id}
+                chatId={chatId}
+                editingId={editingId}
+                editingTitle={editingTitle}
+                folders={folders}
+                exportLoading={exportLoading}
+                onToggle={() => toggleFolder(folder.id)}
+                onSelectFolder={() => onFolderSelect(selectedFolderId === folder.id ? null : folder.id)}
+                onSelectChat={onSelectChat}
+                onRename={onRename}
+                onMove={onMove}
+                onEditingChange={onEditingChange}
+                onFavorite={onFavorite}
+                onExport={onExport}
+                onDelete={onDelete}
+              />
+            ))
+          )}
+          {selectedFolderId &&
+            selectedFolderId !== "unfiled" &&
+            chats.length > 0 &&
+            onGenerateCaseSummary && (
+              <button
+                type="button"
+                onClick={onGenerateCaseSummary}
+                disabled={caseSummaryLoading}
+                className="min-h-touch w-full rounded border border-primary-500 bg-transparent px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:border-primary-400 dark:text-primary-400 dark:hover:bg-primary-900/30 disabled:opacity-50"
+              >
+                {caseSummaryLoading ? "Wird erstellt…" : "Fallzusammenfassung generieren"}
+              </button>
+            )}
+        </div>
+
+        <div className="shrink-0 border-b border-gray-200 p-3 dark:border-gray-600">
+          <button
+            type="button"
+            onClick={onCreateChat}
+            className="min-h-touch min-w-touch w-full rounded-lg bg-primary-500 px-4 py-3 text-sm font-medium text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
+          >
+            + Neuer Chat
+          </button>
+          <input
+            type="search"
+            placeholder="Chats durchsuchen..."
+            value={titleFilter}
+            onChange={(e) => onFilterChange(e.target.value)}
+            className="mt-2 min-h-[44px] w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            aria-label="Chat-Titel durchsuchen"
+          />
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-2" aria-label="Alte Chats">
+          <p className="mb-2 px-1 text-xs font-medium text-gray-500 dark:text-gray-400">Alte Chats</p>
+          {isLoading ? (
+            <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">Laden...</p>
+          ) : unfiledChats.length === 0 ? (
+            <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+              Keine alten Chats außerhalb von Ordnern.
+            </p>
+          ) : (
+            <ul className="space-y-1">
+              {unfiledChats.map((chat) => (
+                <ChatListItem
+                  key={chat.id}
+                  chat={chat}
+                  isSelected={chatId === chat.id}
+                  isEditing={editingId === chat.id}
+                  editingTitle={editingTitle}
+                  folders={folders}
+                  onSelect={() => onSelectChat(chat.id)}
+                  onRename={() => onRename(chat.id)}
+                  onMove={onMove}
+                  onEditingChange={onEditingChange}
+                  onFavorite={onFavorite}
+                  onExport={onExport}
+                  onDelete={onDelete}
+                  exportLoading={exportLoading ?? false}
+                  variant="desktop"
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -653,6 +1171,16 @@ export default function ChatPage() {
       await patchChat(c.id, { is_favorite: !c.is_favorite });
       await refetchChats();
       if (chatId === c.id) await refetchChat();
+    },
+    [chatId, refetchChats, refetchChat]
+  );
+
+  const handleMoveChat = useCallback(
+    async (id: string, folderId: string | null, e: React.MouseEvent) => {
+      e.stopPropagation();
+      await patchChat(id, { folder_id: folderId });
+      await refetchChats();
+      if (chatId === id) await refetchChat();
     },
     [chatId, refetchChats, refetchChat]
   );
@@ -864,16 +1392,16 @@ export default function ChatPage() {
 
   return (
     <>
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       {(chatsError || promptsError) && (
         <div className="rounded bg-amber-100 px-4 py-3 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
           API nicht erreichbar. Stellen Sie sicher, dass der Backend-Server unter http://localhost:8000 läuft.
         </div>
       )}
-      <div className="flex min-h-0 flex-1 flex-col gap-4 md:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden md:flex-row">
         {/* Chat list: full width on mobile when no chat selected, sidebar on desktop */}
         <aside
-          className={`flex w-full shrink-0 flex-col md:w-64 ${
+          className={`min-h-0 w-full shrink-0 flex-col md:w-80 ${
             showListOnMobile ? "flex" : "hidden md:flex"
           }`}
         >
@@ -889,6 +1417,7 @@ export default function ChatPage() {
             onCreateChat={handleCreateChat}
             onSelectChat={handleSelectChat}
             onRename={handleRename}
+            onMove={handleMoveChat}
             onFavorite={handleFavorite}
             onExport={handleExport}
             onDelete={handleDeleteChat}
@@ -903,7 +1432,7 @@ export default function ChatPage() {
 
         {/* Main chat area */}
         <main
-          className={`flex min-w-0 flex-1 flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 ${
+          className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 ${
             showDetailOnMobile ? "flex" : "hidden md:flex"
           }`}
         >
@@ -922,7 +1451,7 @@ export default function ChatPage() {
               </button>
             </div>
           ) : (
-            <>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               {/* Mobile: back button to chat list */}
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-3 py-2 md:hidden">
                 <button
@@ -962,7 +1491,7 @@ export default function ChatPage() {
                 </div>
               )}
 
-              <div className="flex-1 overflow-y-auto p-4">
+              <div className="min-h-0 flex-1 overflow-y-auto p-4">
                 {viewMode === "structured" ? (
                   /* Structured Session Documentation form */
                   <>
@@ -1056,7 +1585,7 @@ export default function ChatPage() {
               </div>
 
               {/* Sticky input area */}
-              <div className="shrink-0 border-t border-gray-200 p-4 dark:border-gray-600">
+              <div className="shrink-0 border-t border-gray-200 bg-white p-4 dark:border-gray-600 dark:bg-gray-800">
                 {!isFinalized && !anonymizationEnabled && (
                   <p
                     className="mb-2 text-xs text-amber-600 dark:text-amber-400"
@@ -1217,7 +1746,7 @@ export default function ChatPage() {
                   </div>
                 )}
               </div>
-            </>
+            </div>
           )}
         </main>
       </div>
